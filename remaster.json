@@ -1,0 +1,1425 @@
+[
+  {
+    "title": "源平大戦絵巻テーマソング",
+    "level": "14.6",
+    "type": "ST",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC+"
+    ],
+    "rating": "328",
+    "percent": "100.5114%"
+  },
+  {
+    "title": "マツヨイナイトバグ",
+    "level": "14.3",
+    "type": "DX",
+    "score_rank": "SSS+",
+    "badges": [],
+    "rating": "321",
+    "percent": "100.5174%"
+  },
+  {
+    "title": "In Chaos",
+    "level": "14.8",
+    "type": "ST",
+    "score_rank": "SSS",
+    "badges": [
+      "FC"
+    ],
+    "rating": "320",
+    "percent": "100.1425%"
+  },
+  {
+    "title": "カゲロウデイズ",
+    "level": "14.1",
+    "type": "ST",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC"
+    ],
+    "rating": "317",
+    "percent": "100.5911%"
+  },
+  {
+    "title": "Fragrance",
+    "level": "14.6",
+    "type": "ST",
+    "score_rank": "SSS",
+    "badges": [
+      "FC"
+    ],
+    "rating": "316",
+    "percent": "100.2803%"
+  },
+  {
+    "title": "Unwelcome School",
+    "level": "14.0",
+    "type": "DX",
+    "score_rank": "SSS+",
+    "badges": [],
+    "rating": "315",
+    "percent": "100.6413%"
+  },
+  {
+    "title": "一か罰",
+    "level": "14.0",
+    "type": "DX",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC"
+    ],
+    "rating": "315",
+    "percent": "100.5234%"
+  },
+  {
+    "title": "熱異常",
+    "level": "13.9",
+    "type": "DX",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC"
+    ],
+    "rating": "312",
+    "percent": "100.7109%"
+  },
+  {
+    "title": "INTERNET YAMERO",
+    "level": "13.8",
+    "type": "DX",
+    "score_rank": "SSS+",
+    "badges": [
+      "AP"
+    ],
+    "rating": "311",
+    "percent": "100.9637%"
+  },
+  {
+    "title": "バグ",
+    "level": "13.8",
+    "type": "DX",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC+"
+    ],
+    "rating": "310",
+    "percent": "100.8370%"
+  },
+  {
+    "title": "メズマライザー",
+    "level": "13.8",
+    "type": "DX",
+    "score_rank": "SSS+",
+    "badges": [],
+    "rating": "310",
+    "percent": "100.6565%"
+  },
+  {
+    "title": "幻想に咲いた花",
+    "level": "13.8",
+    "type": "DX",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC+"
+    ],
+    "rating": "310",
+    "percent": "100.5847%"
+  },
+  {
+    "title": "花と、雪と、ドラムンベース。",
+    "level": "13.8",
+    "type": "ST",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC+"
+    ],
+    "rating": "310",
+    "percent": "100.5084%"
+  },
+  {
+    "title": "プラネタリウム・レヴュー",
+    "level": "13.7",
+    "type": "DX",
+    "score_rank": "SSS+",
+    "badges": [
+      "AP"
+    ],
+    "rating": "309",
+    "percent": "100.9677%"
+  },
+  {
+    "title": "Never Give Up!",
+    "level": "13.7",
+    "type": "DX",
+    "score_rank": "SSS+",
+    "badges": [
+      "AP"
+    ],
+    "rating": "309",
+    "percent": "100.9475%"
+  },
+  {
+    "title": "ガラテアの螺旋",
+    "level": "14.7",
+    "type": "ST",
+    "score_rank": "SS+",
+    "badges": [],
+    "rating": "308",
+    "percent": "99.5557%"
+  },
+  {
+    "title": "テトリス",
+    "level": "13.7",
+    "type": "DX",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC+"
+    ],
+    "rating": "308",
+    "percent": "100.9445%"
+  },
+  {
+    "title": "おとせサンダー",
+    "level": "13.7",
+    "type": "DX",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC+"
+    ],
+    "rating": "308",
+    "percent": "100.9153%"
+  },
+  {
+    "title": "うぇいびー",
+    "level": "13.7",
+    "type": "DX",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC+"
+    ],
+    "rating": "308",
+    "percent": "100.8854%"
+  },
+  {
+    "title": "シエルブルーマルシェ",
+    "level": "13.7",
+    "type": "DX",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC"
+    ],
+    "rating": "308",
+    "percent": "100.6422%"
+  },
+  {
+    "title": "みんなのマイマイマー",
+    "level": "13.7",
+    "type": "ST",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC"
+    ],
+    "rating": "308",
+    "percent": "100.6386%"
+  },
+  {
+    "title": "緋色のDance",
+    "level": "13.7",
+    "type": "ST",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC+"
+    ],
+    "rating": "308",
+    "percent": "100.5019%"
+  },
+  {
+    "title": "ジングルベル",
+    "level": "14.2",
+    "type": "ST",
+    "score_rank": "SSS",
+    "badges": [
+      "FC"
+    ],
+    "rating": "307",
+    "percent": "100.3839%"
+  },
+  {
+    "title": "FLOWER",
+    "level": "14.2",
+    "type": "ST",
+    "score_rank": "SSS",
+    "badges": [],
+    "rating": "307",
+    "percent": "100.2177%"
+  },
+  {
+    "title": "QZKago Requiem",
+    "level": "14.9",
+    "type": "ST",
+    "score_rank": "SS",
+    "badges": [],
+    "rating": "306",
+    "percent": "99.0397%"
+  },
+  {
+    "title": "ロストワンの号哭",
+    "level": "14.2",
+    "type": "ST",
+    "score_rank": "SSS",
+    "badges": [],
+    "rating": "306",
+    "percent": "100.0652%"
+  },
+  {
+    "title": "Alea jacta est!",
+    "level": "14.8",
+    "type": "ST",
+    "score_rank": "SS",
+    "badges": [],
+    "rating": "305",
+    "percent": "99.2409%"
+  },
+  {
+    "title": "Aetheric Energy",
+    "level": "14.1",
+    "type": "DX",
+    "score_rank": "SSS",
+    "badges": [],
+    "rating": "305",
+    "percent": "100.2596%"
+  },
+  {
+    "title": "ダーリンダンス",
+    "level": "13.5",
+    "type": "DX",
+    "score_rank": "SSS+",
+    "badges": [
+      "AP"
+    ],
+    "rating": "304",
+    "percent": "100.9687%"
+  },
+  {
+    "title": "Link",
+    "level": "13.5",
+    "type": "ST",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC+"
+    ],
+    "rating": "303",
+    "percent": "100.9072%"
+  },
+  {
+    "title": "ロウワー",
+    "level": "13.5",
+    "type": "DX",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC+"
+    ],
+    "rating": "303",
+    "percent": "100.7840%"
+  },
+  {
+    "title": "シリウスの輝きのように",
+    "level": "14.0",
+    "type": "DX",
+    "score_rank": "SSS",
+    "badges": [
+      "FC"
+    ],
+    "rating": "302",
+    "percent": "100.1879%"
+  },
+  {
+    "title": "患部で止まってすぐ溶ける～狂気の優曇華院",
+    "level": "14.0",
+    "type": "ST",
+    "score_rank": "SSS",
+    "badges": [
+      "FC"
+    ],
+    "rating": "302",
+    "percent": "100.1450%"
+  },
+  {
+    "title": "Revive The Rave",
+    "level": "14.4",
+    "type": "ST",
+    "score_rank": "SS+",
+    "badges": [],
+    "rating": "302",
+    "percent": "99.6234%"
+  },
+  {
+    "title": "ヴァンパイア",
+    "level": "13.4",
+    "type": "DX",
+    "score_rank": "SSS+",
+    "badges": [
+      "AP"
+    ],
+    "rating": "302",
+    "percent": "100.9791%"
+  },
+  {
+    "title": "39",
+    "level": "13.4",
+    "type": "ST",
+    "score_rank": "SSS+",
+    "badges": [
+      "AP"
+    ],
+    "rating": "302",
+    "percent": "100.9230%"
+  },
+  {
+    "title": "Night Fly",
+    "level": "13.4",
+    "type": "ST",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC+"
+    ],
+    "rating": "301",
+    "percent": "100.8648%"
+  },
+  {
+    "title": "唱",
+    "level": "13.4",
+    "type": "DX",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC+"
+    ],
+    "rating": "301",
+    "percent": "100.8303%"
+  },
+  {
+    "title": "モニタリング",
+    "level": "13.4",
+    "type": "DX",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC+"
+    ],
+    "rating": "301",
+    "percent": "100.7718%"
+  },
+  {
+    "title": "Blew Moon",
+    "level": "13.4",
+    "type": "ST",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC"
+    ],
+    "rating": "301",
+    "percent": "100.6628%"
+  },
+  {
+    "title": "SPILL OVER COLORS",
+    "level": "13.4",
+    "type": "ST",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC"
+    ],
+    "rating": "301",
+    "percent": "100.6469%"
+  },
+  {
+    "title": "フォニイ",
+    "level": "13.3",
+    "type": "DX",
+    "score_rank": "SSS+",
+    "badges": [
+      "AP"
+    ],
+    "rating": "300",
+    "percent": "100.9883%"
+  },
+  {
+    "title": "神っぽいな",
+    "level": "13.3",
+    "type": "DX",
+    "score_rank": "SSS+",
+    "badges": [
+      "AP"
+    ],
+    "rating": "300",
+    "percent": "100.9800%"
+  },
+  {
+    "title": "系ぎて",
+    "level": "15.0",
+    "type": "DX",
+    "score_rank": "S+",
+    "badges": [],
+    "rating": "300",
+    "percent": "98.5760%"
+  },
+  {
+    "title": "ラビットホール",
+    "level": "13.3",
+    "type": "DX",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC"
+    ],
+    "rating": "299",
+    "percent": "100.7769%"
+  },
+  {
+    "title": "サドマミホリック",
+    "level": "13.3",
+    "type": "ST",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC"
+    ],
+    "rating": "299",
+    "percent": "100.7431%"
+  },
+  {
+    "title": "ワールズエンド・ダンスホール",
+    "level": "13.3",
+    "type": "ST",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC"
+    ],
+    "rating": "299",
+    "percent": "100.7386%"
+  },
+  {
+    "title": "言ノ葉カルマ",
+    "level": "13.3",
+    "type": "ST",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC"
+    ],
+    "rating": "299",
+    "percent": "100.6520%"
+  },
+  {
+    "title": "クレイジークレイジーダンサーズ",
+    "level": "13.3",
+    "type": "ST",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC"
+    ],
+    "rating": "299",
+    "percent": "100.5832%"
+  },
+  {
+    "title": "Bad Apple!! feat.nomico",
+    "level": "13.3",
+    "type": "ST",
+    "score_rank": "SSS+",
+    "badges": [],
+    "rating": "299",
+    "percent": "100.5558%"
+  },
+  {
+    "title": "MAXRAGE",
+    "level": "14.2",
+    "type": "DX",
+    "score_rank": "SS+",
+    "badges": [],
+    "rating": "298",
+    "percent": "99.7316%"
+  },
+  {
+    "title": "超常マイマイン",
+    "level": "13.8",
+    "type": "DX",
+    "score_rank": "SSS",
+    "badges": [],
+    "rating": "298",
+    "percent": "100.1524%"
+  },
+  {
+    "title": "単一指向性オーバーブルーム",
+    "level": "13.8",
+    "type": "DX",
+    "score_rank": "SSS",
+    "badges": [],
+    "rating": "298",
+    "percent": "100.0951%"
+  },
+  {
+    "title": "the EmpErroR",
+    "level": "14.9",
+    "type": "ST",
+    "score_rank": "S+",
+    "badges": [],
+    "rating": "298",
+    "percent": "98.6164%"
+  },
+  {
+    "title": "立ち入り禁止",
+    "level": "13.8",
+    "type": "ST",
+    "score_rank": "SSS",
+    "badges": [],
+    "rating": "298",
+    "percent": "100.0613%"
+  },
+  {
+    "title": "妄想感傷代償連盟",
+    "level": "13.2",
+    "type": "ST",
+    "score_rank": "SSS+",
+    "badges": [
+      "AP+"
+    ],
+    "rating": "298",
+    "percent": "101.0000%"
+  },
+  {
+    "title": "はいよろこんで",
+    "level": "13.2",
+    "type": "DX",
+    "score_rank": "SSS+",
+    "badges": [
+      "AP"
+    ],
+    "rating": "298",
+    "percent": "100.9687%"
+  },
+  {
+    "title": "Tell Your World",
+    "level": "13.2",
+    "type": "ST",
+    "score_rank": "SSS+",
+    "badges": [
+      "AP"
+    ],
+    "rating": "298",
+    "percent": "100.9375%"
+  },
+  {
+    "title": "ビビデバ",
+    "level": "13.2",
+    "type": "DX",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC+"
+    ],
+    "rating": "297",
+    "percent": "100.9374%"
+  },
+  {
+    "title": "勇者",
+    "level": "13.2",
+    "type": "DX",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC+"
+    ],
+    "rating": "297",
+    "percent": "100.8800%"
+  },
+  {
+    "title": "酔いどれ知らず",
+    "level": "13.2",
+    "type": "DX",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC+"
+    ],
+    "rating": "297",
+    "percent": "100.8190%"
+  },
+  {
+    "title": "Rooftop Run: Act1",
+    "level": "13.2",
+    "type": "ST",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC+"
+    ],
+    "rating": "297",
+    "percent": "100.8157%"
+  },
+  {
+    "title": "踊",
+    "level": "13.2",
+    "type": "DX",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC+"
+    ],
+    "rating": "297",
+    "percent": "100.8106%"
+  },
+  {
+    "title": "ヒバナ",
+    "level": "13.2",
+    "type": "ST",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC"
+    ],
+    "rating": "297",
+    "percent": "100.7822%"
+  },
+  {
+    "title": "ってゐ！ ～えいえんてゐVer～",
+    "level": "13.2",
+    "type": "ST",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC+"
+    ],
+    "rating": "297",
+    "percent": "100.7284%"
+  },
+  {
+    "title": "はやくそれになりたい！",
+    "level": "13.2",
+    "type": "ST",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC"
+    ],
+    "rating": "297",
+    "percent": "100.6762%"
+  },
+  {
+    "title": "レーイレーイ",
+    "level": "13.7",
+    "type": "DX",
+    "score_rank": "SSS",
+    "badges": [
+      "FC"
+    ],
+    "rating": "296",
+    "percent": "100.2330%"
+  },
+  {
+    "title": "アンビバレンス",
+    "level": "13.7",
+    "type": "DX",
+    "score_rank": "SSS",
+    "badges": [],
+    "rating": "296",
+    "percent": "100.1856%"
+  },
+  {
+    "title": "時計の国のジェミニ",
+    "level": "13.7",
+    "type": "DX",
+    "score_rank": "SSS",
+    "badges": [
+      "FC"
+    ],
+    "rating": "296",
+    "percent": "100.1001%"
+  },
+  {
+    "title": "Garakuta Doll Play",
+    "level": "14.8",
+    "type": "ST",
+    "score_rank": "S+",
+    "badges": [],
+    "rating": "295",
+    "percent": "98.4950%"
+  },
+  {
+    "title": "Blows Up Everything",
+    "level": "14.3",
+    "type": "DX",
+    "score_rank": "SS",
+    "badges": [],
+    "rating": "295",
+    "percent": "99.3167%"
+  },
+  {
+    "title": "Sun Dance",
+    "level": "14.0",
+    "type": "ST",
+    "score_rank": "SS+",
+    "badges": [
+      "FC+"
+    ],
+    "rating": "295",
+    "percent": "99.8862%"
+  },
+  {
+    "title": "アイドル",
+    "level": "13.1",
+    "type": "DX",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC+"
+    ],
+    "rating": "294",
+    "percent": "100.9344%"
+  },
+  {
+    "title": "ヴィラン",
+    "level": "13.0",
+    "type": "DX",
+    "score_rank": "SSS+",
+    "badges": [
+      "AP"
+    ],
+    "rating": "293",
+    "percent": "100.9846%"
+  },
+  {
+    "title": "Beat Of Mind",
+    "level": "14.2",
+    "type": "ST",
+    "score_rank": "SS",
+    "badges": [],
+    "rating": "293",
+    "percent": "99.4151%"
+  },
+  {
+    "title": "廻廻奇譚",
+    "level": "13.5",
+    "type": "DX",
+    "score_rank": "SSS",
+    "badges": [
+      "FC"
+    ],
+    "rating": "292",
+    "percent": "100.2406%"
+  },
+  {
+    "title": "D✪N’T ST✪P R✪CKIN’",
+    "level": "13.5",
+    "type": "ST",
+    "score_rank": "SSS",
+    "badges": [],
+    "rating": "292",
+    "percent": "100.2033%"
+  },
+  {
+    "title": "Southern Cross",
+    "level": "13.9",
+    "type": "DX",
+    "score_rank": "SS+",
+    "badges": [],
+    "rating": "292",
+    "percent": "99.5826%"
+  },
+  {
+    "title": "Xaleid◆scopiX",
+    "level": "15.0",
+    "type": "DX",
+    "score_rank": "S",
+    "badges": [],
+    "rating": "291",
+    "percent": "97.2405%"
+  },
+  {
+    "title": "PANDORA PARADOXXX",
+    "level": "15.0",
+    "type": "ST",
+    "score_rank": "S",
+    "badges": [],
+    "rating": "291",
+    "percent": "97.1122%"
+  },
+  {
+    "title": "Burning Hearts ～炎のANGEL～",
+    "level": "13.8",
+    "type": "ST",
+    "score_rank": "SS+",
+    "badges": [],
+    "rating": "291",
+    "percent": "99.9461%"
+  },
+  {
+    "title": "AMAZING MIGHTYYYY!!!!",
+    "level": "14.5",
+    "type": "ST",
+    "score_rank": "S+",
+    "badges": [],
+    "rating": "290",
+    "percent": "98.8424%"
+  },
+  {
+    "title": "からくりピエロ",
+    "level": "12.9",
+    "type": "ST",
+    "score_rank": "SSS+",
+    "badges": [],
+    "rating": "290",
+    "percent": "100.6511%"
+  },
+  {
+    "title": "洗脳",
+    "level": "12.9",
+    "type": "ST",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC"
+    ],
+    "rating": "290",
+    "percent": "100.6439%"
+  },
+  {
+    "title": "FFT",
+    "level": "14.5",
+    "type": "ST",
+    "score_rank": "S+",
+    "badges": [],
+    "rating": "290",
+    "percent": "98.5957%"
+  },
+  {
+    "title": "Schwarzschild",
+    "level": "14.9",
+    "type": "ST",
+    "score_rank": "S",
+    "badges": [],
+    "rating": "290",
+    "percent": "97.3819%"
+  },
+  {
+    "title": "隠然",
+    "level": "13.4",
+    "type": "ST",
+    "score_rank": "SSS",
+    "badges": [],
+    "rating": "290",
+    "percent": "100.2599%"
+  },
+  {
+    "title": "Endless World",
+    "level": "13.4",
+    "type": "ST",
+    "score_rank": "SSS",
+    "badges": [
+      "FC"
+    ],
+    "rating": "290",
+    "percent": "100.2251%"
+  },
+  {
+    "title": "Virtual to LIVE",
+    "level": "12.8",
+    "type": "DX",
+    "score_rank": "SSS+",
+    "badges": [
+      "AP"
+    ],
+    "rating": "289",
+    "percent": "100.9782%"
+  },
+  {
+    "title": "Danza zandA",
+    "level": "13.7",
+    "type": "ST",
+    "score_rank": "SS+",
+    "badges": [
+      "FC"
+    ],
+    "rating": "288",
+    "percent": "99.9361%"
+  },
+  {
+    "title": "LUCIA",
+    "level": "13.7",
+    "type": "ST",
+    "score_rank": "SS+",
+    "badges": [],
+    "rating": "288",
+    "percent": "99.9262%"
+  },
+  {
+    "title": "インビジブル",
+    "level": "13.7",
+    "type": "ST",
+    "score_rank": "SS+",
+    "badges": [],
+    "rating": "288",
+    "percent": "99.9180%"
+  },
+  {
+    "title": "Limit Break",
+    "level": "13.7",
+    "type": "ST",
+    "score_rank": "SS+",
+    "badges": [],
+    "rating": "288",
+    "percent": "99.9071%"
+  },
+  {
+    "title": "雷切-RAIKIRI-",
+    "level": "14.8",
+    "type": "ST",
+    "score_rank": "S",
+    "badges": [],
+    "rating": "288",
+    "percent": "97.5068%"
+  },
+  {
+    "title": "アージェントシンメトリー",
+    "level": "14.0",
+    "type": "ST",
+    "score_rank": "SS",
+    "badges": [],
+    "rating": "288",
+    "percent": "99.1122%"
+  },
+  {
+    "title": "planet dancer",
+    "level": "13.7",
+    "type": "ST",
+    "score_rank": "SS+",
+    "badges": [],
+    "rating": "288",
+    "percent": "99.7975%"
+  },
+  {
+    "title": "Save This World νMIX",
+    "level": "13.3",
+    "type": "ST",
+    "score_rank": "SSS",
+    "badges": [
+      "FC"
+    ],
+    "rating": "288",
+    "percent": "100.3545%"
+  },
+  {
+    "title": "ナイト・オブ・ナイツ",
+    "level": "14.4",
+    "type": "ST",
+    "score_rank": "S+",
+    "badges": [],
+    "rating": "288",
+    "percent": "98.6124%"
+  },
+  {
+    "title": "テレキャスタービーボーイ",
+    "level": "12.8",
+    "type": "DX",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC+"
+    ],
+    "rating": "288",
+    "percent": "100.9579%"
+  },
+  {
+    "title": "ナイトメア☆パーティーナイト",
+    "level": "12.8",
+    "type": "ST",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC+"
+    ],
+    "rating": "288",
+    "percent": "100.7858%"
+  },
+  {
+    "title": "ハム太郎とっとこうた",
+    "level": "12.8",
+    "type": "DX",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC+"
+    ],
+    "rating": "288",
+    "percent": "100.6933%"
+  },
+  {
+    "title": "結ンデ開イテ羅刹ト骸",
+    "level": "13.3",
+    "type": "ST",
+    "score_rank": "SSS",
+    "badges": [
+      "FC"
+    ],
+    "rating": "288",
+    "percent": "100.2835%"
+  },
+  {
+    "title": "最終鬼畜妹フランドール・S",
+    "level": "13.7",
+    "type": "ST",
+    "score_rank": "SS+",
+    "badges": [],
+    "rating": "288",
+    "percent": "99.6390%"
+  },
+  {
+    "title": "ロミオとシンデレラ",
+    "level": "13.3",
+    "type": "ST",
+    "score_rank": "SSS",
+    "badges": [
+      "FC"
+    ],
+    "rating": "288",
+    "percent": "100.2522%"
+  },
+  {
+    "title": "マトリョシカ",
+    "level": "13.3",
+    "type": "ST",
+    "score_rank": "SSS",
+    "badges": [
+      "FC"
+    ],
+    "rating": "288",
+    "percent": "100.2509%"
+  },
+  {
+    "title": "Backyun! －悪い女－",
+    "level": "13.3",
+    "type": "ST",
+    "score_rank": "SSS",
+    "badges": [],
+    "rating": "287",
+    "percent": "100.2283%"
+  },
+  {
+    "title": "ロキ",
+    "level": "13.3",
+    "type": "ST",
+    "score_rank": "SSS",
+    "badges": [
+      "FC+"
+    ],
+    "rating": "287",
+    "percent": "100.1970%"
+  },
+  {
+    "title": "STEREOSCAPE",
+    "level": "13.3",
+    "type": "DX",
+    "score_rank": "SSS",
+    "badges": [
+      "FC"
+    ],
+    "rating": "287",
+    "percent": "100.1547%"
+  },
+  {
+    "title": "We Gonna Party",
+    "level": "13.9",
+    "type": "ST",
+    "score_rank": "SS",
+    "badges": [],
+    "rating": "287",
+    "percent": "99.2908%"
+  },
+  {
+    "title": "Panopticon",
+    "level": "14.3",
+    "type": "ST",
+    "score_rank": "S+",
+    "badges": [],
+    "rating": "286",
+    "percent": "98.7050%"
+  },
+  {
+    "title": "明星ロケット",
+    "level": "12.7",
+    "type": "ST",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC+"
+    ],
+    "rating": "285",
+    "percent": "100.8618%"
+  },
+  {
+    "title": "だんだん早くなる",
+    "level": "12.7",
+    "type": "ST",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC+"
+    ],
+    "rating": "285",
+    "percent": "100.8539%"
+  },
+  {
+    "title": "いーあるふぁんくらぶ",
+    "level": "12.7",
+    "type": "ST",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC"
+    ],
+    "rating": "285",
+    "percent": "100.7168%"
+  },
+  {
+    "title": "Future",
+    "level": "12.7",
+    "type": "ST",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC"
+    ],
+    "rating": "285",
+    "percent": "100.7083%"
+  },
+  {
+    "title": "Sky High [Reborn]",
+    "level": "12.7",
+    "type": "ST",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC"
+    ],
+    "rating": "285",
+    "percent": "100.6846%"
+  },
+  {
+    "title": "エピクロスの虹はもう見えない",
+    "level": "13.2",
+    "type": "ST",
+    "score_rank": "SSS",
+    "badges": [
+      "FC"
+    ],
+    "rating": "285",
+    "percent": "100.2509%"
+  },
+  {
+    "title": "DADDY MULK -Groove remix-",
+    "level": "13.8",
+    "type": "ST",
+    "score_rank": "SS",
+    "badges": [],
+    "rating": "285",
+    "percent": "99.4506%"
+  },
+  {
+    "title": "CYBER Sparks",
+    "level": "13.8",
+    "type": "ST",
+    "score_rank": "SS",
+    "badges": [],
+    "rating": "285",
+    "percent": "99.4018%"
+  },
+  {
+    "title": "ぼくたちいつでも　しゅわっしゅわ！",
+    "level": "13.8",
+    "type": "DX",
+    "score_rank": "SS",
+    "badges": [],
+    "rating": "284",
+    "percent": "99.1528%"
+  },
+  {
+    "title": "Secret Sleuth",
+    "level": "13.8",
+    "type": "DX",
+    "score_rank": "SS",
+    "badges": [],
+    "rating": "284",
+    "percent": "99.1383%"
+  },
+  {
+    "title": "星めぐり、果ての君へ。",
+    "level": "13.1",
+    "type": "DX",
+    "score_rank": "SSS",
+    "badges": [],
+    "rating": "284",
+    "percent": "100.4204%"
+  },
+  {
+    "title": "Dragoon",
+    "level": "14.5",
+    "type": "ST",
+    "score_rank": "S",
+    "badges": [],
+    "rating": "284",
+    "percent": "97.9479%"
+  },
+  {
+    "title": "Living Universe",
+    "level": "12.6",
+    "type": "ST",
+    "score_rank": "SSS+",
+    "badges": [],
+    "rating": "283",
+    "percent": "100.7187%"
+  },
+  {
+    "title": "檄！帝国華撃団(改)",
+    "level": "13.1",
+    "type": "ST",
+    "score_rank": "SSS",
+    "badges": [
+      "FC"
+    ],
+    "rating": "283",
+    "percent": "100.2370%"
+  },
+  {
+    "title": "Beat of getting entangled",
+    "level": "14.5",
+    "type": "ST",
+    "score_rank": "S",
+    "badges": [],
+    "rating": "282",
+    "percent": "97.4213%"
+  },
+  {
+    "title": "ZIGG-ZAGG",
+    "level": "12.5",
+    "type": "ST",
+    "score_rank": "SSS+",
+    "badges": [
+      "FC"
+    ],
+    "rating": "281",
+    "percent": "100.7714%"
+  },
+  {
+    "title": "Now or Never",
+    "level": "14.1",
+    "type": "DX",
+    "score_rank": "S+",
+    "badges": [],
+    "rating": "281",
+    "percent": "98.2276%"
+  },
+  {
+    "title": "YA･DA･YO [Reborn]",
+    "level": "14.4",
+    "type": "ST",
+    "score_rank": "S",
+    "badges": [],
+    "rating": "280",
+    "percent": "97.5398%"
+  },
+  {
+    "title": "バーチャルダム　ネーション",
+    "level": "14.4",
+    "type": "DX",
+    "score_rank": "S",
+    "badges": [],
+    "rating": "280",
+    "percent": "97.3310%"
+  },
+  {
+    "title": "記憶、記録",
+    "level": "14.3",
+    "type": "ST",
+    "score_rank": "S",
+    "badges": [],
+    "rating": "279",
+    "percent": "97.8529%"
+  },
+  {
+    "title": "泣き虫O'clock",
+    "level": "12.9",
+    "type": "ST",
+    "score_rank": "SSS",
+    "badges": [],
+    "rating": "279",
+    "percent": "100.4056%"
+  },
+  {
+    "title": "System “Z”",
+    "level": "14.0",
+    "type": "ST",
+    "score_rank": "S+",
+    "badges": [],
+    "rating": "279",
+    "percent": "98.2372%"
+  },
+  {
+    "title": "STARTLINER",
+    "level": "12.3",
+    "type": "DX",
+    "score_rank": "SSS+",
+    "badges": [
+      "AP"
+    ],
+    "rating": "277",
+    "percent": "100.9772%"
+  },
+  {
+    "title": "Death Scythe",
+    "level": "14.2",
+    "type": "ST",
+    "score_rank": "S",
+    "badges": [],
+    "rating": "277",
+    "percent": "97.7793%"
+  },
+  {
+    "title": "Starlight Disco",
+    "level": "12.7",
+    "type": "ST",
+    "score_rank": "SSS",
+    "badges": [],
+    "rating": "275",
+    "percent": "100.4598%"
+  },
+  {
+    "title": "City Escape: Act1",
+    "level": "12.7",
+    "type": "ST",
+    "score_rank": "SSS",
+    "badges": [],
+    "rating": "274",
+    "percent": "100.1807%"
+  },
+  {
+    "title": "Crush On You",
+    "level": "13.7",
+    "type": "ST",
+    "score_rank": "S+",
+    "badges": [],
+    "rating": "273",
+    "percent": "98.4071%"
+  },
+  {
+    "title": "JACKY [Remix]",
+    "level": "14.0",
+    "type": "ST",
+    "score_rank": "S",
+    "badges": [],
+    "rating": "273",
+    "percent": "97.7380%"
+  },
+  {
+    "title": "air's gravity",
+    "level": "13.7",
+    "type": "ST",
+    "score_rank": "S+",
+    "badges": [],
+    "rating": "272",
+    "percent": "98.0238%"
+  },
+  {
+    "title": "FEEL the BEATS",
+    "level": "13.9",
+    "type": "ST",
+    "score_rank": "S",
+    "badges": [],
+    "rating": "271",
+    "percent": "97.6269%"
+  },
+  {
+    "title": "若い力 -SEGA HARD GIRLS MIX-",
+    "level": "12.7",
+    "type": "ST",
+    "score_rank": "S+",
+    "badges": [],
+    "rating": "255",
+    "percent": "98.9576%"
+  }
+]

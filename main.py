@@ -22,13 +22,41 @@ def scrape_data(page):
             data.append(items)
     return data
 
-def sort_data(data):
+def clean_and_save(data, diff):
     clean_data = []
     for row in data:
+        # skip empty arrays
+        if not row:
+            continue
+            
         head = row[0].split("\t")
+        tail = row[-1].split("\t")
+
+        score_rank = row[1]
+        raw_badges = row[2:-1] 
+        allowed = {"FC", "FC+", "AP", "AP+"}
+        badges = [b for b in raw_badges if b in allowed]
+        rating = tail[0]
+        percent = tail[1]
     
-        # length 4 has rank number. length 3 lacks it.
-        if len(head) == 4:
+        # handle unexpected row format
+        if len(head) < 3:
+            if head[0] == "12.8":
+                clean_data.append({
+                    "title": "Kisaragi",
+                    "level": head[0],
+                    "type": head[1],
+                    "score_rank": score_rank,
+                    "badges": badges,
+                    "rating": rating,
+                    "percent": percent
+                })
+                print(f"Kisaragi handled correctly.")
+                continue
+            else:
+                print(f"Skipped bad head: {row}")
+                continue
+        elif len(head) == 4:
             level = head[1]
             chart_type = head[2]
             title = head[3]
@@ -37,17 +65,15 @@ def sort_data(data):
             chart_type = head[1]
             title = head[2]
             
-        score_rank = row[1]
+        # require at least 3 items in row (head, rank, tail)
+        if len(row) < 3:
+            print(f"Skipped short row: {row}")
+            continue
         
-        # middle elements. handles missing combo/sync badges.
-        raw_badges = row[2:-1] 
-        allowed = {"FC", "FC+", "AP", "AP+"}
-        badges = [b for b in raw_badges if b in allowed]
-        
-        # split last string by tab
-        tail = row[-1].split("\t")
-        rating = tail[0]
-        percent = tail[1]
+        # handle unexpected tail format
+        if "\t" not in row[-1]:
+            print(f"Skipped bad tail: {row}")
+            continue
         
         clean_data.append({
             "title": title,
@@ -58,7 +84,9 @@ def sort_data(data):
             "rating": rating,
             "percent": percent
         })
-    return clean_data
+        
+    with open(f"{diff}.json", "w", encoding="utf-8") as f:
+        json.dump(clean_data, f, indent=2, ensure_ascii=False)
 
 with sync_playwright() as p:
     browser = p.chromium.launch(headless=False) 
@@ -69,29 +97,21 @@ with sync_playwright() as p:
     page.locator("button:has(svg.tabler-icon-list)").click()
 
     page.locator("button:has-text('MAS')").click()
-    
-    # wait for UI update
     page.wait_for_timeout(2000)
 
-    print(f"Loading Master...")
-    data = scrape_data(page)
-    print(f"Loaded {len(data)} scores for Master Difficulty.")
-
-    # save separate file per difficulty
-    with open(f"master.json", "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+    print("Loading Master...")
+    raw_data = scrape_data(page)
+    print(f"Loaded {len(raw_data)} scores.")
+    clean_and_save(raw_data, "master")
     
     page.locator("button:has-text('MAS')").click()
     page.wait_for_timeout(1000)
     page.locator("button:has-text('Re:M')").click()
     page.wait_for_timeout(2000)
 
-    print(f"Loading Re:Master...")
-    data = scrape_data(page)
-    print(f"Loaded {len(data)} scores for Re:Master Difficulty.")
+    print("Loading Re:Master...")
+    raw_data = scrape_data(page)
+    print(f"Loaded {len(raw_data)} scores.")
+    clean_and_save(raw_data, "remaster")
 
-    # save separate file per difficulty
-    with open(f"remaster.json", "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-    
     browser.close()
