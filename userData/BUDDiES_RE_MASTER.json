@@ -1,0 +1,29 @@
+[
+  {
+    "title": "系ぎて",
+    "level": "15.0",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "300",
+    "percent": "98.5760%"
+  },
+  {
+    "title": "熱異常",
+    "level": "13.9",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC",
+    "rating": "312",
+    "percent": "100.7109%"
+  },
+  {
+    "title": "バグ",
+    "level": "13.8",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC+",
+    "rating": "310",
+    "percent": "100.8370%"
+  }
+]

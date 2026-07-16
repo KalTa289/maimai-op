@@ -1,0 +1,38 @@
+[
+  {
+    "title": "Aetheric Energy",
+    "level": "14.1",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "305",
+    "percent": "100.2596%"
+  },
+  {
+    "title": "ぼくたちいつでも　しゅわっしゅわ！",
+    "level": "13.8",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "284",
+    "percent": "99.1528%"
+  },
+  {
+    "title": "レーイレーイ",
+    "level": "13.7",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC",
+    "rating": "296",
+    "percent": "100.2330%"
+  },
+  {
+    "title": "Virtual to LIVE",
+    "level": "12.8",
+    "type": "DX",
+    "played": true,
+    "lamp": "AP",
+    "rating": "289",
+    "percent": "100.9782%"
+  }
+]

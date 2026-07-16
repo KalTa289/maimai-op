@@ -1,0 +1,29 @@
+[
+  {
+    "title": "Unwelcome School",
+    "level": "14.0",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "315",
+    "percent": "100.6413%"
+  },
+  {
+    "title": "テトリス",
+    "level": "13.7",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC+",
+    "rating": "308",
+    "percent": "100.9786%"
+  },
+  {
+    "title": "モニタリング",
+    "level": "13.4",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC+",
+    "rating": "301",
+    "percent": "100.7718%"
+  }
+]

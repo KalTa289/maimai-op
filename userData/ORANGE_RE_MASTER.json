@@ -1,0 +1,47 @@
+[
+  {
+    "title": "Dragoon",
+    "level": "14.5",
+    "type": "ST",
+    "played": true,
+    "lamp": null,
+    "rating": "284",
+    "percent": "97.9479%"
+  },
+  {
+    "title": "FLOWER",
+    "level": "14.2",
+    "type": "ST",
+    "played": true,
+    "lamp": null,
+    "rating": "307",
+    "percent": "100.2177%"
+  },
+  {
+    "title": "緋色のDance",
+    "level": "13.7",
+    "type": "ST",
+    "played": true,
+    "lamp": "FC+",
+    "rating": "308",
+    "percent": "100.5019%"
+  },
+  {
+    "title": "planet dancer",
+    "level": "13.7",
+    "type": "ST",
+    "played": true,
+    "lamp": null,
+    "rating": "288",
+    "percent": "99.7975%"
+  },
+  {
+    "title": "明星ロケット",
+    "level": "12.7",
+    "type": "ST",
+    "played": true,
+    "lamp": "FC+",
+    "rating": "285",
+    "percent": "100.8618%"
+  }
+]

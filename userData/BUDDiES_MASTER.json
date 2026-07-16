@@ -1,0 +1,452 @@
+[
+  {
+    "title": "Latent Kingdom",
+    "level": "14.9",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "322",
+    "percent": "100.0903%"
+  },
+  {
+    "title": "raputa",
+    "level": "14.9",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "298",
+    "percent": "98.8331%"
+  },
+  {
+    "title": "Straight into the lights",
+    "level": "14.8",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "310",
+    "percent": "99.5237%"
+  },
+  {
+    "title": "Apollo",
+    "level": "14.7",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC",
+    "rating": "330",
+    "percent": "100.5226%"
+  },
+  {
+    "title": "系ぎて",
+    "level": "14.7",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC",
+    "rating": "318",
+    "percent": "100.2346%"
+  },
+  {
+    "title": "Λzure Vixen",
+    "level": "14.6",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC",
+    "rating": "328",
+    "percent": "100.6401%"
+  },
+  {
+    "title": "神威",
+    "level": "14.6",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC",
+    "rating": "328",
+    "percent": "100.5065%"
+  },
+  {
+    "title": "初音ミクの消失",
+    "level": "14.5",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC",
+    "rating": "304",
+    "percent": "99.5038%"
+  },
+  {
+    "title": "GEOMETRIC DANCE",
+    "level": "14.4",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "324",
+    "percent": "100.5098%"
+  },
+  {
+    "title": "Energizing Flame",
+    "level": "14.4",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC",
+    "rating": "311",
+    "percent": "100.2917%"
+  },
+  {
+    "title": "PUPA",
+    "level": "14.4",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "303",
+    "percent": "99.7975%"
+  },
+  {
+    "title": "天使光輪",
+    "level": "14.4",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "280",
+    "percent": "97.5577%"
+  },
+  {
+    "title": "SQUAD-Phvntom-",
+    "level": "14.3",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "321",
+    "percent": "100.6323%"
+  },
+  {
+    "title": "Party☆People☆Princess",
+    "level": "14.3",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "321",
+    "percent": "100.6169%"
+  },
+  {
+    "title": "渦状銀河のシンフォニエッタ",
+    "level": "14.3",
+    "type": "ST",
+    "played": true,
+    "lamp": null,
+    "rating": "301",
+    "percent": "99.8696%"
+  },
+  {
+    "title": "インパアフェクシオン・ホワイトガアル",
+    "level": "14.2",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC",
+    "rating": "319",
+    "percent": "100.5772%"
+  },
+  {
+    "title": "Horoscope Express",
+    "level": "14.0",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC",
+    "rating": "315",
+    "percent": "100.5601%"
+  },
+  {
+    "title": "The Great Banquet",
+    "level": "14.0",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC",
+    "rating": "315",
+    "percent": "100.5048%"
+  },
+  {
+    "title": "WE'RE BACK!!",
+    "level": "14.0",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "303",
+    "percent": "100.2917%"
+  },
+  {
+    "title": "ozma",
+    "level": "13.9",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC+",
+    "rating": "312",
+    "percent": "100.9185%"
+  },
+  {
+    "title": "Ether Second",
+    "level": "13.9",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "292",
+    "percent": "99.7999%"
+  },
+  {
+    "title": "Redemption",
+    "level": "13.9",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "292",
+    "percent": "99.6303%"
+  },
+  {
+    "title": "OMAKENO Stroke",
+    "level": "13.8",
+    "type": "DX",
+    "played": true,
+    "lamp": "AP",
+    "rating": "311",
+    "percent": "100.9737%"
+  },
+  {
+    "title": "星界ちゃんと可不ちゃんのおつかい合騒曲",
+    "level": "13.8",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC+",
+    "rating": "310",
+    "percent": "100.9251%"
+  },
+  {
+    "title": "POWER OF UNITY",
+    "level": "13.8",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC",
+    "rating": "310",
+    "percent": "100.6431%"
+  },
+  {
+    "title": "DANGEROOOOUS JUNGLE",
+    "level": "13.8",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "310",
+    "percent": "100.5483%"
+  },
+  {
+    "title": "HUMANBORG",
+    "level": "13.8",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC",
+    "rating": "298",
+    "percent": "100.1764%"
+  },
+  {
+    "title": "フェイクフェイス・フェイルセイフ",
+    "level": "13.8",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "298",
+    "percent": "100.1567%"
+  },
+  {
+    "title": "Rush-Hour",
+    "level": "13.8",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "298",
+    "percent": "100.0993%"
+  },
+  {
+    "title": "月面基地",
+    "level": "13.7",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "308",
+    "percent": "100.5391%"
+  },
+  {
+    "title": "IMAWANOKIWA",
+    "level": "13.7",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC",
+    "rating": "308",
+    "percent": "100.5050%"
+  },
+  {
+    "title": "PinqPiq (xovevox Remix)",
+    "level": "13.7",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "296",
+    "percent": "100.2822%"
+  },
+  {
+    "title": "ふらふらふら、",
+    "level": "13.7",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "288",
+    "percent": "99.8703%"
+  },
+  {
+    "title": "oboro",
+    "level": "13.7",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "287",
+    "percent": "99.5163%"
+  },
+  {
+    "title": "my flow",
+    "level": "13.7",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "283",
+    "percent": "99.4241%"
+  },
+  {
+    "title": "トンデモワンダーズ",
+    "level": "13.6",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC+",
+    "rating": "306",
+    "percent": "100.9241%"
+  },
+  {
+    "title": "HANIPAGANDA",
+    "level": "13.6",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "294",
+    "percent": "100.2972%"
+  },
+  {
+    "title": "ULTRA POWER",
+    "level": "13.5",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC",
+    "rating": "303",
+    "percent": "100.6057%"
+  },
+  {
+    "title": "ぽわわん劇場",
+    "level": "13.5",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "303",
+    "percent": "100.5844%"
+  },
+  {
+    "title": "Mystic Parade",
+    "level": "13.5",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "292",
+    "percent": "100.2348%"
+  },
+  {
+    "title": "NOIZY BOUNCE",
+    "level": "13.4",
+    "type": "DX",
+    "played": true,
+    "lamp": "AP",
+    "rating": "302",
+    "percent": "100.9848%"
+  },
+  {
+    "title": "with U",
+    "level": "13.4",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC+",
+    "rating": "301",
+    "percent": "100.9790%"
+  },
+  {
+    "title": "フタタビ",
+    "level": "13.4",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC",
+    "rating": "290",
+    "percent": "100.3966%"
+  },
+  {
+    "title": "Love Kills U",
+    "level": "13.4",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "289",
+    "percent": "100.1611%"
+  },
+  {
+    "title": "1000年生きてる",
+    "level": "13.4",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "289",
+    "percent": "100.0775%"
+  },
+  {
+    "title": "ナミダと流星",
+    "level": "13.3",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "299",
+    "percent": "100.5341%"
+  },
+  {
+    "title": "ジェヘナ",
+    "level": "13.3",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "287",
+    "percent": "100.1771%"
+  },
+  {
+    "title": "シックスプラン",
+    "level": "13.2",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC",
+    "rating": "297",
+    "percent": "100.8267%"
+  },
+  {
+    "title": "サンバディ！",
+    "level": "13.2",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC+",
+    "rating": "297",
+    "percent": "100.7853%"
+  },
+  {
+    "title": "I’m Here (feat. Merry Kirk-Holmes)",
+    "level": "13.2",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "285",
+    "percent": "100.0169%"
+  }
+]

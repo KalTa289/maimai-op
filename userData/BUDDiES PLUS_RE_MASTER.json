@@ -1,0 +1,38 @@
+[
+  {
+    "title": "INTERNET YAMERO",
+    "level": "13.8",
+    "type": "DX",
+    "played": true,
+    "lamp": "AP",
+    "rating": "311",
+    "percent": "100.9637%"
+  },
+  {
+    "title": "ラビットホール",
+    "level": "13.3",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC",
+    "rating": "299",
+    "percent": "100.7769%"
+  },
+  {
+    "title": "酔いどれ知らず",
+    "level": "13.2",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC+",
+    "rating": "297",
+    "percent": "100.8190%"
+  },
+  {
+    "title": "アイドル",
+    "level": "13.1",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC+",
+    "rating": "294",
+    "percent": "100.9344%"
+  }
+]

@@ -1,0 +1,29 @@
+[
+  {
+    "title": "フォニイ",
+    "level": "13.3",
+    "type": "DX",
+    "played": true,
+    "lamp": "AP",
+    "rating": "300",
+    "percent": "100.9883%"
+  },
+  {
+    "title": "踊",
+    "level": "13.2",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC+",
+    "rating": "297",
+    "percent": "100.8106%"
+  },
+  {
+    "title": "ヴィラン",
+    "level": "13.0",
+    "type": "DX",
+    "played": true,
+    "lamp": "AP",
+    "rating": "293",
+    "percent": "100.9846%"
+  }
+]

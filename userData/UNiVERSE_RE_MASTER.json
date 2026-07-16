@@ -1,0 +1,56 @@
+[
+  {
+    "title": "マツヨイナイトバグ",
+    "level": "14.3",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "321",
+    "percent": "100.5174%"
+  },
+  {
+    "title": "Southern Cross",
+    "level": "13.9",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "293",
+    "percent": "99.9772%"
+  },
+  {
+    "title": "幻想に咲いた花",
+    "level": "13.8",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC+",
+    "rating": "310",
+    "percent": "100.5847%"
+  },
+  {
+    "title": "アンビバレンス",
+    "level": "13.7",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "296",
+    "percent": "100.1856%"
+  },
+  {
+    "title": "廻廻奇譚",
+    "level": "13.5",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC",
+    "rating": "292",
+    "percent": "100.2406%"
+  },
+  {
+    "title": "テレキャスタービーボーイ",
+    "level": "12.8",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC+",
+    "rating": "288",
+    "percent": "100.9579%"
+  }
+]

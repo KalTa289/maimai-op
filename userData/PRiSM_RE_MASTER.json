@@ -1,0 +1,47 @@
+[
+  {
+    "title": "シリウスの輝きのように",
+    "level": "14.0",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC",
+    "rating": "302",
+    "percent": "100.1879%"
+  },
+  {
+    "title": "プラネタリウム・レヴュー",
+    "level": "13.7",
+    "type": "DX",
+    "played": true,
+    "lamp": "AP",
+    "rating": "309",
+    "percent": "100.9677%"
+  },
+  {
+    "title": "ダーリンダンス",
+    "level": "13.5",
+    "type": "DX",
+    "played": true,
+    "lamp": "AP",
+    "rating": "304",
+    "percent": "100.9687%"
+  },
+  {
+    "title": "唱",
+    "level": "13.4",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC+",
+    "rating": "301",
+    "percent": "100.8303%"
+  },
+  {
+    "title": "勇者",
+    "level": "13.2",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC+",
+    "rating": "297",
+    "percent": "100.8871%"
+  }
+]

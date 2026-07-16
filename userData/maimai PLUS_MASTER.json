@@ -1,0 +1,407 @@
+[
+  {
+    "title": "Fragrance",
+    "level": "14.2",
+    "type": "ST",
+    "played": true,
+    "lamp": null,
+    "rating": "276",
+    "percent": "97.4167%"
+  },
+  {
+    "title": "Nerverakes",
+    "level": "14.1",
+    "type": "ST",
+    "played": true,
+    "lamp": null,
+    "rating": "280",
+    "percent": "98.0328%"
+  },
+  {
+    "title": "Like the Wind [Reborn]",
+    "level": "14.0",
+    "type": "ST",
+    "played": true,
+    "lamp": null,
+    "rating": "280",
+    "percent": "98.8331%"
+  },
+  {
+    "title": "腐れ外道とチョコレゐト",
+    "level": "13.7",
+    "type": "ST",
+    "played": true,
+    "lamp": "FC",
+    "rating": "297",
+    "percent": "100.4545%"
+  },
+  {
+    "title": "FEEL ALIVE",
+    "level": "13.7",
+    "type": "ST",
+    "played": true,
+    "lamp": null,
+    "rating": "296",
+    "percent": "100.2161%"
+  },
+  {
+    "title": "炎歌 -ほむらうた-",
+    "level": "13.7",
+    "type": "ST",
+    "played": true,
+    "lamp": "FC",
+    "rating": "288",
+    "percent": "99.9611%"
+  },
+  {
+    "title": "Turn around",
+    "level": "13.7",
+    "type": "ST",
+    "played": true,
+    "lamp": "FC",
+    "rating": "288",
+    "percent": "99.8771%"
+  },
+  {
+    "title": "Streak",
+    "level": "13.7",
+    "type": "ST",
+    "played": true,
+    "lamp": "FC",
+    "rating": "288",
+    "percent": "99.6422%"
+  },
+  {
+    "title": "We Gonna Party",
+    "level": "13.7",
+    "type": "ST",
+    "played": true,
+    "lamp": "FC",
+    "rating": "287",
+    "percent": "99.5875%"
+  },
+  {
+    "title": "DO RORO DERODERO ON DO RORO",
+    "level": "13.7",
+    "type": "ST",
+    "played": true,
+    "lamp": null,
+    "rating": "282",
+    "percent": "99.0258%"
+  },
+  {
+    "title": "おちゃめ機能",
+    "level": "13.6",
+    "type": "ST",
+    "played": true,
+    "lamp": null,
+    "rating": "294",
+    "percent": "100.2479%"
+  },
+  {
+    "title": "Space Harrier Main Theme [Reborn]",
+    "level": "13.6",
+    "type": "ST",
+    "played": true,
+    "lamp": null,
+    "rating": "271",
+    "percent": "98.3885%"
+  },
+  {
+    "title": "BAD∞END∞NIGHT",
+    "level": "13.5",
+    "type": "ST",
+    "played": true,
+    "lamp": null,
+    "rating": "291",
+    "percent": "100.1222%"
+  },
+  {
+    "title": "Acceleration",
+    "level": "13.4",
+    "type": "ST",
+    "played": true,
+    "lamp": "FC+",
+    "rating": "290",
+    "percent": "100.4976%"
+  },
+  {
+    "title": "ソーラン☆節",
+    "level": "13.4",
+    "type": "ST",
+    "played": true,
+    "lamp": "FC",
+    "rating": "290",
+    "percent": "100.3729%"
+  },
+  {
+    "title": "YA･DA･YO [Reborn]",
+    "level": "13.4",
+    "type": "ST",
+    "played": true,
+    "lamp": "FC",
+    "rating": "290",
+    "percent": "100.2204%"
+  },
+  {
+    "title": "Spin me harder",
+    "level": "13.4",
+    "type": "ST",
+    "played": true,
+    "lamp": "FC",
+    "rating": "289",
+    "percent": "100.1206%"
+  },
+  {
+    "title": "Lionheart",
+    "level": "13.4",
+    "type": "ST",
+    "played": true,
+    "lamp": "FC",
+    "rating": "289",
+    "percent": "100.0958%"
+  },
+  {
+    "title": "air's gravity",
+    "level": "13.3",
+    "type": "ST",
+    "played": true,
+    "lamp": "FC",
+    "rating": "288",
+    "percent": "100.4844%"
+  },
+  {
+    "title": "Sprintrances",
+    "level": "13.3",
+    "type": "ST",
+    "played": true,
+    "lamp": "FC",
+    "rating": "287",
+    "percent": "100.2042%"
+  },
+  {
+    "title": "Black Out",
+    "level": "13.3",
+    "type": "ST",
+    "played": true,
+    "lamp": "FC",
+    "rating": "287",
+    "percent": "100.1993%"
+  },
+  {
+    "title": "Night Fly",
+    "level": "13.2",
+    "type": "ST",
+    "played": true,
+    "lamp": "FC",
+    "rating": "297",
+    "percent": "100.6224%"
+  },
+  {
+    "title": "Feel My Fire",
+    "level": "13.2",
+    "type": "ST",
+    "played": true,
+    "lamp": "FC+",
+    "rating": "286",
+    "percent": "100.4506%"
+  },
+  {
+    "title": "超絶！Superlative",
+    "level": "13.2",
+    "type": "ST",
+    "played": true,
+    "lamp": null,
+    "rating": "285",
+    "percent": "100.2104%"
+  },
+  {
+    "title": "采配の刻 Power of order",
+    "level": "13.2",
+    "type": "ST",
+    "played": true,
+    "lamp": null,
+    "rating": "285",
+    "percent": "100.0708%"
+  },
+  {
+    "title": "泣き虫O'clock",
+    "level": "13.2",
+    "type": "ST",
+    "played": true,
+    "lamp": null,
+    "rating": "285",
+    "percent": "100.0539%"
+  },
+  {
+    "title": "Quartet Theme [Reborn]",
+    "level": "13.0",
+    "type": "ST",
+    "played": true,
+    "lamp": "FC",
+    "rating": "292",
+    "percent": "100.8065%"
+  },
+  {
+    "title": "Endless World",
+    "level": "13.0",
+    "type": "ST",
+    "played": true,
+    "lamp": "FC",
+    "rating": "292",
+    "percent": "100.5644%"
+  },
+  {
+    "title": "39",
+    "level": "13.0",
+    "type": "ST",
+    "played": true,
+    "lamp": "FC",
+    "rating": "281",
+    "percent": "100.2708%"
+  },
+  {
+    "title": "ぴぴぱぷぅ！",
+    "level": "12.9",
+    "type": "ST",
+    "played": true,
+    "lamp": null,
+    "rating": "271",
+    "percent": "99.7724%"
+  },
+  {
+    "title": "ロミオとシンデレラ",
+    "level": "12.7",
+    "type": "ST",
+    "played": true,
+    "lamp": "FC",
+    "rating": "275",
+    "percent": "100.4561%"
+  },
+  {
+    "title": "地上の戦士",
+    "level": "12.7",
+    "type": "ST",
+    "played": true,
+    "lamp": "FC",
+    "rating": "274",
+    "percent": "100.2290%"
+  },
+  {
+    "title": "ダンシング☆サムライ",
+    "level": "12.7",
+    "type": "ST",
+    "played": true,
+    "lamp": "FC",
+    "rating": "274",
+    "percent": "100.0392%"
+  },
+  {
+    "title": "Sky High [Reborn]",
+    "level": "12.7",
+    "type": "ST",
+    "played": true,
+    "lamp": "FC",
+    "rating": "274",
+    "percent": "100.0341%"
+  },
+  {
+    "title": "御旗のもとに",
+    "level": "12.7",
+    "type": "ST",
+    "played": true,
+    "lamp": null,
+    "rating": "262",
+    "percent": "99.2794%"
+  },
+  {
+    "title": "ゴーゴー幽霊船",
+    "level": "12.6",
+    "type": "ST",
+    "played": true,
+    "lamp": "FC+",
+    "rating": "283",
+    "percent": "100.6706%"
+  },
+  {
+    "title": "Natural Flow",
+    "level": "12.6",
+    "type": "ST",
+    "played": true,
+    "lamp": "FC",
+    "rating": "272",
+    "percent": "100.2598%"
+  },
+  {
+    "title": "Link",
+    "level": "12.5",
+    "type": "ST",
+    "played": true,
+    "lamp": "FC",
+    "rating": "263",
+    "percent": "99.8653%"
+  },
+  {
+    "title": "maimaiちゃんのテーマ",
+    "level": "12.4",
+    "type": "ST",
+    "played": true,
+    "lamp": "AP",
+    "rating": "280",
+    "percent": "100.8750%"
+  },
+  {
+    "title": "Tell Your World",
+    "level": "12.4",
+    "type": "ST",
+    "played": true,
+    "lamp": "FC",
+    "rating": "279",
+    "percent": "100.7821%"
+  },
+  {
+    "title": "スイートマジック",
+    "level": "12.4",
+    "type": "ST",
+    "played": true,
+    "lamp": "FC",
+    "rating": "279",
+    "percent": "100.5915%"
+  },
+  {
+    "title": "Sweetiex2",
+    "level": "12.4",
+    "type": "ST",
+    "played": true,
+    "lamp": "FC",
+    "rating": "279",
+    "percent": "100.5062%"
+  },
+  {
+    "title": "犬日和。",
+    "level": "12.4",
+    "type": "ST",
+    "played": true,
+    "lamp": "FC",
+    "rating": "268",
+    "percent": "100.3497%"
+  },
+  {
+    "title": "Starlight Disco",
+    "level": "12.4",
+    "type": "ST",
+    "played": true,
+    "lamp": "FC",
+    "rating": "268",
+    "percent": "100.1277%"
+  },
+  {
+    "title": "デコボコ体操第二",
+    "level": "10.7",
+    "type": "ST",
+    "played": true,
+    "lamp": "FC+",
+    "rating": "240",
+    "percent": "100.9041%"
+  }
+]

@@ -1,0 +1,38 @@
+[
+  {
+    "title": "単一指向性オーバーブルーム",
+    "level": "13.8",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "298",
+    "percent": "100.0951%"
+  },
+  {
+    "title": "Never Give Up!",
+    "level": "13.7",
+    "type": "DX",
+    "played": true,
+    "lamp": "AP",
+    "rating": "309",
+    "percent": "100.9475%"
+  },
+  {
+    "title": "時計の国のジェミニ",
+    "level": "13.7",
+    "type": "DX",
+    "played": true,
+    "lamp": "FC",
+    "rating": "296",
+    "percent": "100.1001%"
+  },
+  {
+    "title": "星めぐり、果ての君へ。",
+    "level": "13.1",
+    "type": "DX",
+    "played": true,
+    "lamp": null,
+    "rating": "284",
+    "percent": "100.4204%"
+  }
+]
