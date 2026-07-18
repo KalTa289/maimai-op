@@ -70,15 +70,6 @@ def clean_data(data):
 
     return clean_data
 
-def calc_max_op(title, difficulty, master_dict, remaster_dict):
-    max_op = 0.0
-    if difficulty == "master":
-        level = float(master_dict[title]["level"])
-    elif difficulty == "remaster":
-        level = float(remaster_dict[title]["level"])
-    max_op = (level + 3.0) * 5.0
-    return max_op
-
 def calc_op(played, level_str, lamp, rating_str, percent_str):
     op = 0.0
     if not played:
