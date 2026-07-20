@@ -184,9 +184,9 @@
     "level": "13.9",
     "type": "DX",
     "played": true,
-    "lamp": null,
+    "lamp": "FC",
     "rating": "292",
-    "percent": "99.7999%"
+    "percent": "99.8179%"
   },
   {
     "title": "Redemption",
@@ -321,7 +321,7 @@
     "played": true,
     "lamp": "FC+",
     "rating": "306",
-    "percent": "100.9241%"
+    "percent": "100.9294%"
   },
   {
     "title": "HANIPAGANDA",

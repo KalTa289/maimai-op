@@ -7,8 +7,8 @@ import subprocess
 from lib import *
 
 username = "kalta"  # input("Enter the username: ")
-filepath = Path("userData/player_data.json")
-with open("versions.json", "r", encoding="utf-8") as f:
+filepath = Path("data/player_data.json")
+with open("data/versions.json", "r", encoding="utf-8") as f:
     versions = json.load(f)
 
 concurrent_tasks = 5
@@ -46,7 +46,7 @@ async def read_player_data(browser, url):
                 await page.close()
 
 async def read_version_data(browser, url, version, diff):
-    data_path = f"userData/{version}_{diff}.json"
+    data_path = f"records/{version}_{diff}.json"
     async with sem:
         page = await browser.new_page()
         try:
@@ -83,8 +83,8 @@ async def main():
             if existing_data == player_data:
                 print("Player data unchanged. Checking for missing version data...")
                 for versionindex in range(len(versions)):
-                    file_path_master = f"userData/{versions[versionindex]}_MASTER.json"
-                    file_path_remaster = f"userData/{versions[versionindex]}_RE_MASTER.json"
+                    file_path_master = f"records/{versions[versionindex]}_MASTER.json"
+                    file_path_remaster = f"records/{versions[versionindex]}_RE_MASTER.json"
                     if Path(file_path_master).exists():
                         print(f"{versions[versionindex]} MASTER - Found")
                     else:

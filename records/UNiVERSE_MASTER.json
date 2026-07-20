@@ -391,7 +391,7 @@
     "level": "13.2",
     "type": "DX",
     "played": true,
-    "lamp": null,
+    "lamp": "FC",
     "rating": "286",
     "percent": "100.4624%"
   },

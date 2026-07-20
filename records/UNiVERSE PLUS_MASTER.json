@@ -123,7 +123,7 @@
     "played": true,
     "lamp": "FC",
     "rating": "317",
-    "percent": "100.6738%"
+    "percent": "100.7304%"
   },
   {
     "title": "BLUE ZONE",
@@ -324,6 +324,15 @@
     "percent": "100.8051%"
   },
   {
+    "title": "Define",
+    "level": "13.5",
+    "type": "DX",
+    "played": true,
+    "lamp": "AP+",
+    "rating": "304",
+    "percent": "101.0000%"
+  },
+  {
     "title": "Transcend Lights",
     "level": "13.5",
     "type": "DX",
@@ -331,15 +340,6 @@
     "lamp": "AP",
     "rating": "304",
     "percent": "100.9666%"
-  },
-  {
-    "title": "Define",
-    "level": "13.5",
-    "type": "DX",
-    "played": true,
-    "lamp": "FC",
-    "rating": "292",
-    "percent": "100.4361%"
   },
   {
     "title": "ツクヨミステップ",

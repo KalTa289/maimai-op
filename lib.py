@@ -95,5 +95,7 @@ def calc_op(played, level_str, lamp, rating_str, percent_str):
     elif score > 100.0000:
         score_bonus = (score - 100.0000) * 3.75
         op = (level + 2.0) * 5.0 + combo_bonus + score_bonus
+    else:
+        op = 0.0
 
     return op
