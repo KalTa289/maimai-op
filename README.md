@@ -1,11 +1,12 @@
 # maimai-op
-Extension for [maishift](https://maimai.shiftpsh.com/)
+Data fetcher/organizer for [maishift](https://maimai.shiftpsh.com/)
 
 Current features:
 - Fetch play records from maishift
-- Calculate my All Overpower and compare it with the Theoretical Max All Overpower
+- Calculate Overpower per version and compare it with the theoretical Max Overpower
+- Display of Possession Plates per version
+- Very basic GUI
 
 Roadmap:
-- Possession Plates
-- Calculation of Hot Overpower
-- Hopefully an actual way to run the script
+- Better GUI
+- Better data management
