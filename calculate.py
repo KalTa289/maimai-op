@@ -1,5 +1,34 @@
 import json
-from lib import *
+
+def calc_op(played, level_str, lamp, rating_str, percent_str):
+    op = 0.0
+    if not played:
+        return op
+        
+    level = float(level_str)
+    rating = float(rating_str) / 20.0
+    score = float(percent_str.strip("%"))
+
+    combo_bonus = 0.0
+    match lamp:
+        case "FC":
+            combo_bonus = 0.5
+        case "FC+":
+            combo_bonus = 0.75
+        case "AP":
+            combo_bonus = 1.0
+        case "AP+":
+            combo_bonus = 1.25
+            
+    if 97.0000 <= score <= 100.0000:
+        op = rating * 5.0 + combo_bonus
+    elif score > 100.0000:
+        score_bonus = (score - 100.0000) * 3.75
+        op = (level + 2.0) * 5.0 + combo_bonus + score_bonus
+    else:
+        op = 0.0
+
+    return op
 
 all_op = 0.0
 all_max_op = 0.0

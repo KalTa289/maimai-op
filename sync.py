@@ -2,7 +2,6 @@ from playwright.async_api import async_playwright
 from pathlib import Path
 import asyncio
 import json
-from lib import *
 
 username = "kalta"  # input("Enter the username: ")
 filepath = Path("data/player_data.json")
@@ -11,6 +10,78 @@ with open("data/versions.json", "r", encoding="utf-8") as f:
 
 concurrent_tasks = 5
 sem = asyncio.Semaphore(concurrent_tasks)  # limit concurrent tasks to avoid overwhelming the server
+
+async def scrape_data(page):
+    row_selector = "tr.chakra-table__row"
+    await page.wait_for_selector(row_selector, timeout=10000)
+    
+    elements = await page.locator(row_selector).all()
+    data = []
+
+    for el in elements:
+        text = await el.inner_text()
+        if text.strip():
+            items = [line.strip() for line in text.split("\n") if line.strip()]
+            data.append(items)
+    return data
+
+def clean_data(data):
+    clean_data = []
+    allowed_badges = {"FC", "FC+", "AP", "AP+"}
+    for row in data:
+        # skip empty arrays
+        if not row:
+            print("Skipped empty row")
+            continue
+            
+        head = row[0].split("\t")
+        # handle unexpected row format
+        if len(head) < 3:
+            if head[0] == "12.8" or head[1] == "12.8":
+                title = "Kisaragi"
+                print(f"Kisaragi handled correctly.")
+            else:
+                print(f"Skipped bad head: {row}")
+                continue
+        elif len(head) == 4:
+            level = head[1]
+            chart_type = head[2]
+            title = head[3]
+        else:
+            level = head[0]
+            chart_type = head[1]
+            title = head[2]
+        if "%" not in row[-1] or "\t" not in row[-1]:
+            played = False
+        elif row[-1]:
+            tail = row[-1].split("\t")
+            rating = tail[0]
+            percent = tail[1]
+            raw_badges = row[2:-1]
+            lamps = [b for b in raw_badges if b in allowed_badges]
+            lamp = lamps[0] if lamps else None
+            played = True
+        else:
+            played = False
+        
+        clean_data.append(
+            {
+            "title": title,
+            "level": level,
+            "type": chart_type,
+            "played": played,
+            "lamp": lamp,
+            "rating": rating,
+            "percent": percent
+            } if played else {
+            "title": title,
+            "level": level,
+            "type": chart_type,
+            "played": played,
+            }
+        )
+
+    return clean_data
 
 async def read_player_data(browser, url):
     async with sem:
