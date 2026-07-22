@@ -1,9 +1,7 @@
-from ensurepip import version
 from playwright.async_api import async_playwright
 from pathlib import Path
 import asyncio
 import json
-import subprocess
 from lib import *
 
 username = "kalta"  # input("Enter the username: ")
@@ -116,4 +114,3 @@ async def main():
     return results
 
 asyncio.run(main())
-subprocess.run(["python", "calculate.py"])

@@ -1,5 +1,5 @@
 # maimai-op
-Data fetcher/organizer for [maishift](https://maimai.shiftpsh.com/)
+Data fetcher/organizer for [maishift](https://github.com/shiftpsh/shiftpsh.com-maimai)
 
 Current features:
 - Fetch play records from maishift
