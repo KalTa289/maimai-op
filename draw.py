@@ -32,17 +32,15 @@ tree.configure(yscrollcommand=scrollbar.set)
 scrollbar.pack(side="right", fill="y")
 tree.pack(side="left", fill="both", expand=True)
 
-# define row colors
 tree.tag_configure("plate_1", background="#74cdff") # silver
 tree.tag_configure("plate_2", background="#fffe1b") # gold
 tree.tag_configure("plate_3", background="#fff3c1") # platinum
 tree.tag_configure("plate_4", background="#f1d3fb") # rainbow
 
 data = load_data()
-total_charts = 0
 
 for item in data:
-    pos = item.get("possession", 0)
+    pos = item.get("posession", 0)
     v_op = item.get("version_op", 0.0)
     v_max = item.get("version_max_op", 0.0)
     op_val = item.get("op_percent", 0.0)
@@ -61,4 +59,5 @@ for item in data:
         ),
         tags=(row_tag,) if row_tag else ()
     )
+
 root.mainloop()
