@@ -1,0 +1,6 @@
+#not a lot atm so
+__pycache__/
+.vscode/
+
+#user data
+records/
