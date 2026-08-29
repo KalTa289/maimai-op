@@ -7,6 +7,9 @@ import asyncio
 import ctypes
 from pathlib import Path
 
+from calculate import calculate_for_user, load_json
+from sync import sync_sega_direct, run_maishift_sync
+
 PLATE_NAMES = {
     4: "Rainbow",
     3: "Platinum",
@@ -135,15 +138,6 @@ def generate_header_gradient(plate_id, width=580, height=86):
 
     return rounded_img
 
-def load_json(path, default=None):
-    if default is None:
-        default = []
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return default
-
 def format_delta(val, is_percent=False):
     if val is None or abs(val) < 0.0001:
         return "—"
@@ -227,12 +221,11 @@ class HistoryGraphCanvas(tk.Canvas):
             coords.append((x, y))
             self.dot_coords.append((x, y, p, i))
 
-            # X-axis label
             short_ts = p["timestamp"][5:16] if len(p["timestamp"]) >= 16 else p["timestamp"]
             label_text = f"#{p['play_count']}" if p.get("play_count") else short_ts
             self.create_text(x, h - pad_bottom + 14, text=label_text, fill=DARK_THEME["text_secondary"], font=("Helvetica", 8), anchor="center")
 
-        # Draw Gradient Shaded Area
+        # Draw Shaded Area under Straight Line Segments
         if len(coords) >= 2:
             poly_points = [coords[0][0], pad_top + plot_h]
             for cx, cy in coords:
@@ -240,11 +233,11 @@ class HistoryGraphCanvas(tk.Canvas):
             poly_points.extend([coords[-1][0], pad_top + plot_h])
             self.create_polygon(poly_points, fill="#0f2942", outline="")
 
-            # Draw Connecting Neon Line
+            # Draw Connecting Straight Lines (smooth=False)
             flat_coords = []
             for cx, cy in coords:
                 flat_coords.extend([cx, cy])
-            self.create_line(flat_coords, fill=DARK_THEME["accent"], width=3, smooth=(n > 2))
+            self.create_line(flat_coords, fill=DARK_THEME["accent"], width=3, smooth=False)
 
         # Draw Point Dots & Values
         for x, y, p, idx in self.dot_coords:
@@ -297,28 +290,22 @@ class MaimaiOpApp:
     def __init__(self, root):
         self.root = root
         self.root.title("maimai-op Dashboard")
-        self.root.geometry("620x720")
+        self.root.geometry("640x720")
         self.root.minsize(540, 480)
         self.root.configure(bg=DARK_THEME["bg_main"])
 
-        # Enable Windows dark titlebar
         set_windows_dark_titlebar(self.root)
 
-        # Global version order mapping from data/versions.json
         self.raw_versions = load_json("data/versions.json", [])
         self.version_order = {v: i for i, v in enumerate(self.raw_versions)}
 
-        # Active user profile state
         self.active_user_id = "kalta"
         self.available_profiles = []
         self.history_data = []
         self.all_summary = None
         self.rows_data = []
 
-        # Header background photo reference
         self.header_bg_photo = None
-
-        # Sorting state: (column_name, is_descending)
         self.sort_state = {"column": "version", "descending": False}
 
         self.apply_theme_styles()
@@ -339,15 +326,13 @@ class MaimaiOpApp:
 
         style.configure("TCombobox", fieldbackground=DARK_THEME["bg_input"], background=DARK_THEME["bg_card"], foreground=DARK_THEME["text_primary"], darkcolor=DARK_THEME["bg_card"], lightcolor=DARK_THEME["bg_card"])
 
-        style.configure("TButton", background=DARK_THEME["bg_card"], foreground=DARK_THEME["text_primary"], bordercolor="#3b4252", lightcolor=DARK_THEME["bg_card"], darkcolor=DARK_THEME["bg_card"], padding=(6, 2))
+        style.configure("TButton", background=DARK_THEME["bg_card"], foreground=DARK_THEME["text_primary"], bordercolor="#3b4252", lightcolor=DARK_THEME["bg_card"], darkcolor=DARK_THEME["bg_card"], padding=(5, 2))
         style.map("TButton", background=[("active", "#333842"), ("pressed", "#2d313b")])
 
-        # Dark Notebook Tabs
         style.configure("TNotebook", background=DARK_THEME["bg_main"], borderwidth=0)
         style.configure("TNotebook.Tab", background=DARK_THEME["bg_card"], foreground=DARK_THEME["text_secondary"], padding=(10, 4), font=("Helvetica", 9, "bold"))
         style.map("TNotebook.Tab", background=[("selected", DARK_THEME["bg_input"]), ("active", "#333842")], foreground=[("selected", DARK_THEME["accent"]), ("active", DARK_THEME["text_primary"])])
 
-        # Dark Treeview
         style.configure(
             "Treeview",
             background=DARK_THEME["tree_bg"],
@@ -372,17 +357,20 @@ class MaimaiOpApp:
         profile_bar = ttk.Frame(self.root, padding=(10, 8, 10, 4))
         profile_bar.pack(fill="x")
 
-        ttk.Label(profile_bar, text="Profile:", style="Header.TLabel").pack(side="left", padx=(0, 6))
+        ttk.Label(profile_bar, text="Profile:", style="Header.TLabel").pack(side="left", padx=(0, 4))
 
-        self.profile_combo = ttk.Combobox(profile_bar, state="readonly", width=18, font=("Helvetica", 9))
+        self.profile_combo = ttk.Combobox(profile_bar, state="readonly", width=16, font=("Helvetica", 9))
         self.profile_combo.pack(side="left", padx=(0, 6))
         self.profile_combo.bind("<<ComboboxSelected>>", self.on_profile_selected)
 
         add_btn = ttk.Button(profile_bar, text="+ Add", command=self.add_new_profile)
-        add_btn.pack(side="left", padx=(0, 4))
+        add_btn.pack(side="left", padx=(0, 3))
 
-        sync_btn = ttk.Button(profile_bar, text="🔄 Sync", command=self.sync_active_user)
-        sync_btn.pack(side="left", padx=(0, 4))
+        sega_btn = ttk.Button(profile_bar, text="🔑 SEGA Direct", command=self.trigger_sega_sync)
+        sega_btn.pack(side="left", padx=(0, 3))
+
+        sync_btn = ttk.Button(profile_bar, text="🌐 Maishift", command=self.trigger_maishift_sync)
+        sync_btn.pack(side="left", padx=(0, 3))
 
         calc_btn = ttk.Button(profile_bar, text="⚡ Recalc", command=self.recalculate_active_user)
         calc_btn.pack(side="left")
@@ -441,21 +429,19 @@ class MaimaiOpApp:
         graph_tab = ttk.Frame(self.notebook, padding=(6, 6, 6, 6))
         self.notebook.add(graph_tab, text="📈 OP Growth Graph")
 
-        # Graph Highlights Stat Bar
         self.graph_stats_frame = tk.Frame(graph_tab, bg=DARK_THEME["bg_card"], bd=1, relief="solid", padx=10, pady=6)
         self.graph_stats_frame.pack(fill="x", pady=(0, 6))
 
         self.graph_stat_lbl = tk.Label(self.graph_stats_frame, text="", font=("Helvetica", 9, "bold"), bg=DARK_THEME["bg_card"], fg=DARK_THEME["text_primary"])
         self.graph_stat_lbl.pack(side="left")
 
-        # Graph Canvas
         self.history_graph = HistoryGraphCanvas(graph_tab)
         self.history_graph.pack(fill="both", expand=True)
 
         # 4. Footer Status Bar
         footer = ttk.Frame(self.root, padding=(10, 2, 10, 6))
         footer.pack(fill="x", side="bottom")
-        tip_lbl = ttk.Label(footer, text="💡 Tip: Switch tabs above to toggle between the Breakdown Table and the OP Growth Graph.", font=("Helvetica", 8, "italic"), foreground=DARK_THEME["text_secondary"])
+        tip_lbl = ttk.Label(footer, text="💡 Tip: Use 'SEGA Direct' to instantly fetch your latest scores using your CLAL / _t token.", font=("Helvetica", 8, "italic"), foreground=DARK_THEME["text_secondary"])
         tip_lbl.pack(side="left")
 
     def on_header_canvas_resize(self, event=None):
@@ -501,8 +487,6 @@ class MaimaiOpApp:
         if str(play_count).isdigit():
             play_count = f"{int(play_count):,} plays"
 
-        plate_str = PLATE_NAMES.get(all_pos, "—")
-
         text_color_primary = "#111827" if all_pos > 0 else "#f8fafc"
         text_color_secondary = "#374151" if all_pos > 0 else "#94a3b8"
         text_color_accent = "#030712" if all_pos > 0 else "#e2e8f0"
@@ -511,8 +495,8 @@ class MaimaiOpApp:
         self.header_canvas.create_text(14, 18, text=f"Player: {username}  (@{self.active_user_id})", font=("Helvetica", 12, "bold"), fill=text_color_primary, anchor="w")
         self.header_canvas.create_text(w - 14, 18, text=f"{last_sync}", font=("Helvetica", 8, "italic"), fill=text_color_secondary, anchor="e")
 
-        # Line 2: Play count & Overall Plate
-        self.header_canvas.create_text(14, 40, text=f"Plays: {play_count}   •   Overall Plate: {plate_str}", font=("Helvetica", 9, "bold"), fill=text_color_secondary, anchor="w")
+        # Line 2: Play count (clean, plate is indicated by the background)
+        self.header_canvas.create_text(14, 40, text=f"Plays: {play_count}", font=("Helvetica", 9, "bold"), fill=text_color_secondary, anchor="w")
 
         # Line 3: Total Overpower & Deltas
         if self.all_summary:
@@ -525,7 +509,7 @@ class MaimaiOpApp:
                 d_text = f"(Δ {delta_str} | {format_delta(delta_pct, is_percent=True)})"
                 self.header_canvas.create_text(w - 14, 63, text=d_text, font=("Helvetica", 9, "bold"), fill=delta_color, anchor="e")
         else:
-            self.header_canvas.create_text(14, 63, text="No calculated version data yet. Click 'Sync' or 'Recalc'.", font=("Helvetica", 8, "italic"), fill=text_color_secondary, anchor="w")
+            self.header_canvas.create_text(14, 63, text="No calculated version data yet. Click 'SEGA Direct' or 'Maishift'.", font=("Helvetica", 8, "italic"), fill=text_color_secondary, anchor="w")
 
     def refresh_profiles(self, select_user=None):
         users_dir = Path("users")
@@ -606,7 +590,6 @@ class MaimaiOpApp:
         self.render_header_canvas()
         self.sort_rows(self.sort_state["column"], self.sort_state["descending"])
 
-        # Update History Graph
         self.history_graph.set_data(self.history_data)
         self.update_graph_stats()
 
@@ -693,7 +676,7 @@ class MaimaiOpApp:
     def add_new_profile(self):
         new_handle = simpledialog.askstring(
             "Add User Profile",
-            "Enter the Maishift profile handle/ID:\n(e.g., the handle in maimai.shiftpsh.com/en/profile/<handle>)",
+            "Enter the profile handle/ID:\n(e.g., your username or profile handle)",
             parent=self.root
         )
         if not new_handle:
@@ -711,13 +694,12 @@ class MaimaiOpApp:
         
         do_sync = messagebox.askyesno(
             "Sync Profile",
-            f"Profile '@{clean_handle}' created!\n\nWould you like to sync play records from Maishift now?"
+            f"Profile '@{clean_handle}' created!\n\nWould you like to sync play records from SEGA maimai DX NET now?"
         )
         if do_sync:
-            self.sync_active_user()
+            self.trigger_sega_sync()
 
     def recalculate_active_user(self):
-        from calculate import calculate_for_user
         self.status_lbl.config(text=f"Recalculating @{self.active_user_id}...")
         self.root.update_idletasks()
         try:
@@ -728,27 +710,80 @@ class MaimaiOpApp:
             self.status_lbl.config(text="Recalculation failed")
             messagebox.showerror("Error", f"Recalculation failed: {e}")
 
-    def sync_active_user(self):
+    # ==========================================
+    # SEGA Direct Sync Handler (Delegate to sync.py)
+    # ==========================================
+
+    def trigger_sega_sync(self):
         user_id = self.active_user_id
-        self.status_lbl.config(text=f"Syncing @{user_id}...")
+        user_dir = self.get_user_dir(user_id)
+        token_file = user_dir / "auth_token.txt"
+        saved_tok = token_file.read_text(encoding="utf-8").strip() if token_file.exists() else ""
+
+        cookie_input = simpledialog.askstring(
+            "Direct SEGA DX NET Sync",
+            f"Enter your SEGA maimai DX NET cookie or CLAL / _t token:\n(Account profile: @{user_id})",
+            initialvalue=saved_tok,
+            parent=self.root
+        )
+        if not cookie_input:
+            return
+
+        self.status_lbl.config(text=f"Connecting to SEGA DX NET...")
+        self.root.update_idletasks()
 
         def run_thread():
             try:
-                from sync import run_sync
-                asyncio.run(run_sync(user_id))
-                self.root.after(0, lambda: self.on_sync_finished(user_id, None))
+                res = sync_sega_direct(user_id, cookie_input)
+                self.root.after(0, lambda: self.on_sega_sync_finished(user_id, None, res))
             except Exception as e:
-                self.root.after(0, lambda: self.on_sync_finished(user_id, str(e)))
+                self.root.after(0, lambda err_str=str(e): self.on_sega_sync_finished(user_id, err_str, None))
 
         t = threading.Thread(target=run_thread, daemon=True)
         t.start()
 
-    def on_sync_finished(self, user_id, err):
+    def on_sega_sync_finished(self, user_id, err, res):
         if err:
-            self.status_lbl.config(text="Sync failed")
-            messagebox.showerror("Sync Error", f"Failed to sync @{user_id}:\n{err}")
+            self.status_lbl.config(text="SEGA Sync failed")
+            messagebox.showerror("SEGA Sync Error", f"Failed to sync with SEGA DX NET:\n\n{err}")
         else:
-            self.status_lbl.config(text="Sync complete!")
+            self.status_lbl.config(text="SEGA Sync complete!")
+            self.refresh_profiles(select_user=user_id)
+            messagebox.showinfo(
+                "SEGA Sync Success",
+                f"Successfully synced from SEGA maimai DX NET!\n\n"
+                f"Player: {res['player_data']['username']}\n"
+                f"Play count: {int(res['player_data']['play_count']):,} plays\n"
+                f"MASTER records: {res['master_count']}\n"
+                f"RE:MASTER records: {res['remaster_count']}\n"
+                f"Updated {res['versions_count']} version records & Overpower calculations."
+            )
+
+    # ==========================================
+    # Maishift Web Sync Handler (Delegate to sync.py)
+    # ==========================================
+
+    def trigger_maishift_sync(self):
+        user_id = self.active_user_id
+        self.status_lbl.config(text=f"Syncing @{user_id} (Maishift)...")
+        self.root.update_idletasks()
+
+        def run_thread():
+            try:
+                asyncio.run(run_maishift_sync(user_id))
+                self.root.after(0, lambda: self.on_maishift_sync_finished(user_id, None))
+            except Exception as e:
+                self.root.after(0, lambda err_str=str(e): self.on_maishift_sync_finished(user_id, err_str))
+
+        t = threading.Thread(target=run_thread, daemon=True)
+        t.start()
+
+    def on_maishift_sync_finished(self, user_id, err):
+        if err:
+            self.status_lbl.config(text="Maishift Sync failed")
+            messagebox.showerror("Maishift Sync Error", f"Failed to sync @{user_id}:\n\n{err}")
+        else:
+            self.status_lbl.config(text="Maishift Sync complete!")
             self.refresh_profiles(select_user=user_id)
 
 def main():
