@@ -2,11 +2,13 @@
 Data fetcher/organizer for [maishift](https://github.com/shiftpsh/shiftpsh.com-maimai)
 
 Current features:
-- Fetch play records from maishift
+- Fetch play records from maishift (very slow)
 - Calculate Overpower per version and compare it with the theoretical Max Overpower
 - Display of Possession Plates per version
-- Very basic GUI
+- Different data storing per user, plot your OP change in a graph
+- Basic GUI
 
 Roadmap:
-- Better GUI
-- Better data management
+- Faster sync method
+- Independance from maishift
+- Discord bot integration

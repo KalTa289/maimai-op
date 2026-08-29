@@ -1,6 +1,6 @@
-#not a lot atm so
+#default?
 __pycache__/
 .vscode/
 
 #user data
-records/
+users/

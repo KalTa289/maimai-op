@@ -1,87 +1,54 @@
 from playwright.async_api import async_playwright
+from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 from pathlib import Path
 import asyncio
 import json
-
-username = "kalta"  # input("Enter the username: ")
-filepath = Path("data/player_data.json")
-with open("data/versions.json", "r", encoding="utf-8") as f:
-    versions = json.load(f)
+import sys
+from calculate import calculate_for_user, load_json
 
 concurrent_tasks = 5
-sem = asyncio.Semaphore(concurrent_tasks)  # limit concurrent tasks to avoid overwhelming the server
+sem = asyncio.Semaphore(concurrent_tasks)
 
 async def scrape_data(page):
     row_selector = "tr.chakra-table__row"
     await page.wait_for_selector(row_selector, timeout=10000)
-    
-    elements = await page.locator(row_selector).all()
-    data = []
-
-    for el in elements:
-        text = await el.inner_text()
-        if text.strip():
-            items = [line.strip() for line in text.split("\n") if line.strip()]
-            data.append(items)
-    return data
+    return await page.evaluate('''() => {
+        const rows = Array.from(document.querySelectorAll("tr.chakra-table__row"));
+        return rows.map(tr => {
+            const tds = Array.from(tr.querySelectorAll("td"));
+            return tds.map(td => td.innerText.trim());
+        });
+    }''')
 
 def clean_data(data):
-    clean_data = []
+    clean = []
     allowed_badges = {"FC", "FC+", "AP", "AP+"}
     for row in data:
-        # skip empty arrays
-        if not row:
-            print("Skipped empty row")
+        if len(row) < 9:
             continue
             
-        head = row[0].split("\t")
-        # handle unexpected row format
-        if len(head) < 3:
-            if head[0] == "12.8" or head[1] == "12.8":
-                title = "Kisaragi"
-                print(f"Kisaragi handled correctly.")
-            else:
-                print(f"Skipped bad head: {row}")
-                continue
-        elif len(head) == 4:
-            level = head[1]
-            chart_type = head[2]
-            title = head[3]
-        else:
-            level = head[0]
-            chart_type = head[1]
-            title = head[2]
-        if "%" not in row[-1] or "\t" not in row[-1]:
-            played = False
-        elif row[-1]:
-            tail = row[-1].split("\t")
-            rating = tail[0]
-            percent = tail[1]
-            raw_badges = row[2:-1]
-            lamps = [b for b in raw_badges if b in allowed_badges]
-            lamp = lamps[0] if lamps else None
-            played = True
-        else:
-            played = False
+        level = row[1]
+        chart_type = row[2]
+        raw_title = row[3]
+        title = raw_title if raw_title else "\u200b"
         
-        clean_data.append(
-            {
+        lamp_raw = row[5]
+        lamp = lamp_raw if lamp_raw in allowed_badges else None
+        rating = row[7] or "0"
+        percent = row[8]
+        played = bool(percent and "%" in percent)
+        
+        row_dict = {
             "title": title,
             "level": level,
             "type": chart_type,
             "played": played,
-            "lamp": lamp,
-            "rating": rating,
-            "percent": percent
-            } if played else {
-            "title": title,
-            "level": level,
-            "type": chart_type,
-            "played": played,
-            }
-        )
+        }
+        if played:
+            row_dict.update({"lamp": lamp, "rating": rating, "percent": percent})
+        clean.append(row_dict)
 
-    return clean_data
+    return clean
 
 async def read_player_data(browser, url):
     async with sem:
@@ -89,33 +56,22 @@ async def read_player_data(browser, url):
         try:
             await page.goto(url, timeout=60000, wait_until="domcontentloaded")
             await page.wait_for_load_state("networkidle")
-            # extract username
-            # locate via profile icon image. stable.
             icon_img = page.locator("img[src*='Icon']").first
             raw_name = await icon_img.locator("+ div span").first.text_content()
-            username = raw_name.strip()
-            # target exact span, avoid page wrappers
             label = page.get_by_text("Play #", exact=True)
-            # climb to parent div, move to next sibling div
             value_box = label.locator("..").locator("+ div")
-            # extract text
             raw_text = await value_box.text_content()
-            # split at '(', strip whitespace, remove comma
-            play_count = raw_text.split("(")[0].strip().replace(",", "")
-            user_data = {
-                "username": username,
-                "play_count": play_count
+            return {
+                "username": raw_name.strip(),
+                "play_count": raw_text.split("(")[0].strip().replace(",", "")
             }
-            return user_data
         except Exception as e:
             print(f"Error on {url}: {e}")
         finally:
-            # ensure page closes even if task crashes
-            if not page.is_closed():
-                await page.close()
+            await page.close()
 
-async def read_version_data(browser, url, version, diff):
-    data_path = f"records/{version}_{diff}.json"
+async def read_version_data(browser, url, user_dir, version, diff):
+    data_path = user_dir / "records" / f"{version}_{diff}.json"
     async with sem:
         page = await browser.new_page()
         try:
@@ -127,61 +83,66 @@ async def read_version_data(browser, url, version, diff):
             clean_data_list = clean_data(data)
             with open(data_path, "w", encoding="utf-8") as f:
                 json.dump(clean_data_list, f, indent=2, ensure_ascii=False)
+        except PlaywrightTimeoutError:
+            print(f"Failed to load {version} {diff}.")
         except Exception as e:
             print(f"Error on {url}: {e}")
         finally:
-            # ensure page closes even if task crashes
-            if not page.is_closed():
-                await page.close()
+            await page.close()
         print(f"{version}_{diff} completed.")
     return None
 
-async def main():
+async def run_sync(user_id: str = "kalta"):
+    user_dir = Path(f"users/{user_id}")
+    user_dir.mkdir(parents=True, exist_ok=True)
+    records_dir = user_dir / "records"
+    records_dir.mkdir(exist_ok=True)
+
+    versions = load_json("data/versions.json", [])
+    history = load_json(user_dir / "history.json", [])
+
+    existing_play_count = None
+    existing_username = None
+    if history:
+        last_snap = history[-1]
+        existing_play_count = last_snap.get("play_count")
+        existing_username = last_snap.get("username")
+
     tasks = []
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False)
-        print(f"Fetching data for {username}")
-        player_data = await read_player_data(browser, f"https://maimai.shiftpsh.com/en/profile/{username}")
-        if filepath.exists() and filepath.stat().st_size > 0:
-            print("Existing player data found. Checking for changes...")
-            try:
-                with open(filepath, "r", encoding="utf-8") as f:
-                    existing_data = json.load(f)
-            except json.decoder.JSONDecodeError:
-                existing_data = [] # default fallback
-            if existing_data == player_data:
-                print("Player data unchanged. Checking for missing version data...")
-                for versionindex in range(len(versions)):
-                    file_path_master = f"records/{versions[versionindex]}_MASTER.json"
-                    file_path_remaster = f"records/{versions[versionindex]}_RE_MASTER.json"
-                    if Path(file_path_master).exists():
-                        print(f"{versions[versionindex]} MASTER - Found")
-                    else:
-                        print(f"{versions[versionindex]} MASTER - Missing")
-                        tasks.append(read_version_data(browser, f'https://maimai.shiftpsh.com/en/profile/{username}/records?v="{versionindex}"&difficulty=MASTER&sort=level&order=desc&n=false', versions[versionindex], "MASTER"))
-                    if Path(file_path_remaster).exists():
-                        print(f"{versions[versionindex]} RE:MASTER - Found")
-                    else:
-                        print(f"{versions[versionindex]} RE:MASTER - Missing")
-                        tasks.append(read_version_data(browser, f'https://maimai.shiftpsh.com/en/profile/{username}/records?v="{versionindex}"&difficulty=RE_MASTER&sort=level&order=desc&n=false', versions[versionindex], "RE_MASTER"))
-            else:
-                print("Player data has changed. Updating...")
-                with open(filepath, "w", encoding="utf-8") as f:
-                    json.dump(player_data, f, indent=2, ensure_ascii=False)
-                for versionindex in range(len(versions)):
-                    for diff in ["MASTER", "RE_MASTER"]:
-                        url = f'https://maimai.shiftpsh.com/en/profile/{username}/records?v="{versionindex}"&difficulty={diff}&sort=level&order=desc&n=false'
-                        tasks.append(read_version_data(browser, url, versions[versionindex], diff))
+        browser = await p.chromium.launch(headless=True)
+        print(f"Fetching data for profile '{user_id}'")
+        player_data = await read_player_data(browser, f"https://maimai.shiftpsh.com/en/profile/{user_id}")
+        
+        has_changed = True
+        if player_data:
+            if existing_play_count is not None and existing_play_count == player_data.get("play_count") and existing_username == player_data.get("username"):
+                has_changed = False
+
+        if has_changed:
+            print(f"Player data updated/changed for @{user_id} (Play count: {player_data.get('play_count')}). Updating records...")
         else:
-            print("No existing player data found. Fetching all data.")
-            with open(filepath, "w", encoding="utf-8") as f:
-                json.dump(player_data, f, indent=2, ensure_ascii=False)
-            for versionindex in range(len(versions)):
-                for diff in ["MASTER", "RE_MASTER"]:
-                    url = f'https://maimai.shiftpsh.com/en/profile/{username}/records?v="{versionindex}"&difficulty={diff}&sort=level&order=desc&n=false'
-                    tasks.append(read_version_data(browser, url, versions[versionindex], diff))
+            print(f"Play count unchanged ({existing_play_count}). Checking for any missing version data...")
+
+        for v_idx, version in enumerate(versions):
+            for diff in ["MASTER", "RE_MASTER"]:
+                diff_label = diff.replace("_", ":")
+                rec_path = records_dir / f"{version}_{diff}.json"
+                if not has_changed and rec_path.exists():
+                    print(f"{version} {diff_label} - Found")
+                else:
+                    if not has_changed:
+                        print(f"{version} {diff_label} - Missing")
+                    url = f'https://maimai.shiftpsh.com/en/profile/{user_id}/records?v="{v_idx}"&difficulty={diff}&sort=level&order=desc&n=false'
+                    tasks.append(read_version_data(browser, url, user_dir, version, diff))
+
         results = await asyncio.gather(*tasks, return_exceptions=True)
         await browser.close()
+
+    print(f"Sync complete for @{user_id}. Running calculation...")
+    calculate_for_user(user_id, player_data=player_data)
     return results
 
-asyncio.run(main())
+if __name__ == "__main__":
+    target_user = sys.argv[1] if len(sys.argv) > 1 else "kalta"
+    asyncio.run(run_sync(target_user))
