@@ -1,98 +1,109 @@
 import re
+import html
 import json
-import asyncio
-from pathlib import Path
+import unicodedata
 import requests
-
+from datetime import datetime, timezone, timedelta
+from pathlib import Path
 from calculate import calculate_for_user, load_json
 
-BASE_URLS = {
-    "intl": {
-        "net": "https://maimaidx-eng.com/maimai-mobile",
-        "domain": "maimaidx-eng.com",
-        "site_id": "maimaidxex"
-    },
-    "jp": {
-        "net": "https://maimaidx.jp/maimai-mobile",
-        "domain": "maimaidx.jp",
-        "site_id": "maimaidx"
-    }
-}
+def is_sega_maintenance() -> bool:
+    return 4 <= datetime.now(timezone(timedelta(hours=9))).hour < 7
+
+BASE_URL = "https://maimaidx-eng.com/maimai-mobile"
+
+SGIMERA_DATA_URL = "https://sgimera.github.io/mai_RatingAnalyzer/scripts_maimai/maidx_in_lv_data_circleplus.js"
+GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1JXFhqpow60lXYzETOXaqIRVIaIpWWxCsGCcE0piLLDw/export?format=csv&gid=859834814"
+
+AUTH_GATEWAY_URL = (
+    "https://lng-tgk-aime-gw.am-all.net/common_auth/login"
+    "?site_id=maimaidxex&redirect_url=https://maimaidx-eng.com/maimai-mobile/&back_url=https://maimai.sega.com/"
+)
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9,ja;q=0.8",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
 }
 
-# ==========================================
-# 1. SEGA maimai DX NET Direct Sync Engine
-# ==========================================
+RATING_COEFFS = [
+    (100.5, 22.4), (100.0, 21.6), (99.5, 21.1), (99.0, 20.8),
+    (98.0, 20.3), (97.0, 20.0), (94.0, 16.8), (90.0, 15.2),
+    (80.0, 13.6), (75.0, 12.0), (70.0, 11.2), (60.0, 9.6),
+    (50.0, 8.0), (40.0, 6.4), (30.0, 4.8), (20.0, 3.2),
+    (10.0, 1.6), (0.0, 0.0)
+]
 
-def calc_single_rating(level_constant: float, achievement: float) -> int:
-    score = min(achievement, 100.5)
-    if score >= 100.5:
-        mult = 22.4
-    elif score >= 100.0:
-        mult = 21.6
-    elif score >= 99.5:
-        mult = 21.1
-    elif score >= 99.0:
-        mult = 20.8
-    elif score >= 98.0:
-        mult = 20.3
-    elif score >= 97.0:
-        mult = 20.0
-    elif score >= 94.0:
-        mult = 16.8
-    elif score >= 90.0:
-        mult = 15.2
-    elif score >= 80.0:
-        mult = 13.6
-    elif score >= 75.0:
-        mult = 12.0
-    elif score >= 70.0:
-        mult = 11.2
-    elif score >= 60.0:
-        mult = 9.6
-    elif score >= 50.0:
-        mult = 8.0
-    else:
-        mult = 0.0
-    return int(level_constant * (score / 100.0) * mult)
+VERSION_MAP = {
+    "maimai": "maimai", "maimai PLUS": "maimai PLUS",
+    "maimai GreeN": "GreeN", "maimai GreeN PLUS": "GreeN PLUS",
+    "maimai ORANGE": "ORANGE", "maimai ORANGE PLUS": "ORANGE PLUS",
+    "maimai PiNK": "PiNK", "maimai PiNK PLUS": "PiNK PLUS",
+    "maimai MURASAKi": "MURASAKi", "maimai MURASAKi PLUS": "MURASAKi PLUS",
+    "maimai MiLK": "MiLK", "maimai MiLK PLUS": "MiLK PLUS", "MiLK PLUS": "MiLK PLUS",
+    "maimai FiNALE": "FiNALE", "maimai でらっくす": "DX", "maimai でらっくす PLUS": "DX PLUS",
+    "maimai でらっくす Splash": "Splash", "maimai でらっくす Splash PLUS": "Splash PLUS",
+    "maimai でらっくす UNiVERSE": "UNiVERSE", "maimai でらっくす UNiVERSE PLUS": "UNiVERSE PLUS",
+    "maimai でらっくす FESTiVAL": "FESTiVAL", "maimai でらっくす FESTiVAL PLUS": "FESTiVAL PLUS",
+    "maimai でらっくす BUDDiES": "BUDDiES", "maimai でらっくす BUDDiES PLUS": "BUDDiES PLUS",
+    "maimai でらっくす PRiSM": "PRiSM", "maimai でらっくす PRiSM PLUS": "PRiSM PLUS",
+    "maimai でらっくす CiRCLE": "CiRCLE", "maimai でらっくす CiRCLE PLUS": "CiRCLE PLUS",
+}
 
-def parse_cookie_input(cookie_input: str) -> dict:
-    cookie_str = cookie_input.strip()
-    cookies = {}
-    if "=" in cookie_str:
-        for p in cookie_str.split(";"):
-            if "=" in p:
-                k, v = p.strip().split("=", 1)
-                cookies[k.strip()] = v.strip()
-    else:
-        # User passed a raw token string (e.g. 64-char clal or _t)
-        cookies["clal"] = cookie_str
-        cookies["CLAL"] = cookie_str
-        cookies["_t"] = cookie_str
-    return cookies
+DIFF_NAMES = ["BASIC", "ADVANCED", "EXPERT", "MASTER", "RE_MASTER"]
+
+DELETED_SONGS = {
+    "二息歩行",
+}
+
+SUPPLEMENTAL_CHARTS = [
+    {
+        "title": "Xaleid◆scopiX",
+        "type": "DX",
+        "version": "PRiSM PLUS",
+        "ds": [7.7, 11.0, 13.7, 14.9, 15.0]
+    }
+]
+
+def calc_single_rating(level: float, achieve: float) -> int:
+    cap_achieve = min(100.5, achieve)
+    coeff = 0.0
+    for threshold, c in RATING_COEFFS:
+        if achieve >= threshold:
+            coeff = c
+            break
+    return int(level * coeff * cap_achieve / 100.0)
+
+def parse_cookie_input(raw_input: str) -> dict:
+    raw = raw_input.strip()
+    if not raw:
+        return {}
+    if "=" not in raw and len(raw) >= 16:
+        return {"clal": raw}
+    cookies = {k.strip(): v.strip().strip('"') for part in raw.split(";") if "=" in part for k, v in [part.strip().split("=", 1)]}
+    return cookies if cookies else ({"clal": raw} if raw else {})
 
 def parse_player_data(html_text: str) -> dict:
     name_m = re.search(r'<div class="name_block[^>]*>(.*?)</div>', html_text, re.DOTALL)
-    username = name_m.group(1).strip() if name_m else "Unknown"
+    raw_name = name_m.group(1).strip() if name_m else "Unknown"
+    clean_name = html.unescape(re.sub(r'<[^>]+>', '', raw_name)).strip() or "Unknown"
 
     rating_m = re.search(r'<div class="rating_block[^>]*>(.*?)</div>', html_text, re.DOTALL)
-    rating = rating_m.group(1).strip() if rating_m else "0"
+    rating_val = int(re.sub(r'\D', '', rating_m.group(1))) if rating_m else 0
 
-    play_m = re.search(r'(?:total play count|累計プレイ回数)[：:]\s*([0-9,]+)', html_text, re.IGNORECASE)
-    play_count = play_m.group(1).replace(",", "").strip() if play_m else "0"
+    v_play_m = re.search(r'(?:current version|今バージョン)[^\d]*([\d,]+)', html_text, re.I)
+    tot_play_m = re.search(r'(?:total play count|累計プレイ回数|総プレイ回数|total play)[^\d]*([\d,]+)', html_text, re.I)
+
+    version_plays = int(v_play_m.group(1).replace(",", "")) if v_play_m else 0
+    total_plays = int(tot_play_m.group(1).replace(",", "")) if tot_play_m else 0
+    total_plays, version_plays = total_plays or version_plays, version_plays or total_plays
 
     return {
-        "username": username,
-        "rating": rating,
-        "play_count": play_count
+        "username": clean_name,
+        "rating": rating_val,
+        "play_count": total_plays,
+        "version_play_count": version_plays,
     }
-
-import html
 
 def normalize_title(raw_title: str) -> str:
     if not raw_title:
@@ -100,23 +111,87 @@ def normalize_title(raw_title: str) -> str:
     t = html.unescape(raw_title).strip()
     if not t:
         return "\u200b"
-    # Normalize common quote variations
+    t = unicodedata.normalize("NFKC", t)
     t = t.replace("’", "'").replace("‘", "'").replace("”", '"').replace("“", '"')
-    return t
+    t = t.replace("◇", "◆").replace("&#9670;", "◆").replace("&#9671;", "◆")
+    return re.sub(r'\s+', ' ', t).strip()
 
-def parse_song_cards(html_text: str) -> dict:
-    songs = {}
-    for form in re.finditer(r'<form[^>]*>.*?</form>', html_text, re.DOTALL):
-        f_content = form.group(0)
+def is_utage_title_or_block(title: str, block_html: str) -> bool:
+    """Returns True if the song card or title corresponds to an UTAGE (宴) chart."""
+    if "music_utage.png" in block_html or "music_kind_icon_utage" in block_html:
+        return True
+    if 'name="genre" value="199"' in block_html or 'genre=199' in block_html:
+        return True
+    # Match UTAGE title prefix tags: [宴], [協], [蔵], [蛸], [星], [は], [狂], [光], [即], [覚], [撫], etc.
+    if re.match(r"^\[(?:宴|協|蔵|蛸|星|は|狂|光|即|覚|撫|跳|耐|疑|傾|戯|直|逆|撃|双|謎|極|超|真|弾|変)\]", title):
+        return True
+    return False
 
-        title_m = re.search(r'<div class="music_name_block[^>]*>(.*?)</div>', f_content, re.DOTALL)
-        raw_title = title_m.group(1).strip() if title_m else ""
+def parse_chart_type(block_html: str) -> str:
+    """Accurately identifies if a SEGA DX NET song card is DX or Standard."""
+    # 1. Primary kind icon (non-pointer)
+    if re.search(r'<img[^>]*class="music_kind_icon\b(?![^"]*pointer)[^"]*"[^>]*src="[^"]*music_dx\.png"', block_html) or \
+       re.search(r'<img[^>]*src="[^"]*music_dx\.png"[^>]*class="music_kind_icon\b(?![^"]*pointer)[^"]*"', block_html):
+        return "DX"
+    if re.search(r'<img[^>]*class="music_kind_icon\b(?![^"]*pointer)[^"]*"[^>]*src="[^"]*music_standard\.png"', block_html) or \
+       re.search(r'<img[^>]*src="[^"]*music_standard\.png"[^>]*class="music_kind_icon\b(?![^"]*pointer)[^"]*"', block_html):
+        return "Standard"
+
+    # 2. Toggle pointer fallback
+    # If the toggle pointer is Standard, clicking it switches to Standard, so current card is DX!
+    if "music_kind_icon_standard pointer" in block_html:
+        return "DX"
+    if "music_kind_icon_dx pointer" in block_html:
+        return "Standard"
+
+    # 3. Simple presence fallback
+    if "music_dx.png" in block_html:
+        return "DX"
+    return "Standard"
+
+def level_matches(display_lvl: str, ds_val: float) -> bool:
+    """Checks if a display level string from SEGA DX NET matches a chart constant float."""
+    if not display_lvl:
+        return True
+    clean_lvl = display_lvl.strip().replace("Lv", "").replace("LV", "")
+    has_plus = clean_lvl.endswith("+")
+    try:
+        base_int = int(clean_lvl[:-1] if has_plus else clean_lvl)
+    except ValueError:
+        return True
+
+    ds_base = int(ds_val)
+    ds_frac = round(ds_val - ds_base, 1)
+
+    if base_int != ds_base:
+        return False
+    if base_int < 7 or base_int >= 15:
+        return True
+    expected_plus = (ds_frac >= 0.7)
+    return has_plus == expected_plus
+
+def parse_song_cards(html_text: str) -> list[dict]:
+    songs = []
+    for b in html_text.split('<div class="w_450')[1:]:
+        if 'name="idx"' not in b and "music_name_block" not in b:
+            continue
+
+        title_m = re.search(r'<div class="music_name_block[^>]*>(.*?)</div>', b, re.DOTALL)
+        if not title_m:
+            continue
+        raw_title = title_m.group(1).strip()
         title = normalize_title(raw_title)
 
-        is_dx = bool("music_dx.png" in f_content or "music_kind_icon" in f_content)
-        chart_type = "DX" if is_dx else "Standard"
+        if is_utage_title_or_block(title, b):
+            continue
 
-        score_matches = re.findall(r'<div class="music_score_block[^>]*>(.*?)</div>', f_content, re.DOTALL)
+        chart_type = parse_chart_type(b)
+
+        # Extract display level if available (e.g. '12', '12+', '13')
+        lv_m = re.search(r'<div class="music_lv_block[^>]*>(.*?)</div>', b, re.DOTALL)
+        level_disp = lv_m.group(1).strip() if lv_m else ""
+
+        score_matches = re.findall(r'<div class="music_score_block[^>]*>(.*?)</div>', b, re.DOTALL)
         played = False
         percent = "0%"
         achieve_val = 0.0
@@ -132,302 +207,175 @@ def parse_song_cards(html_text: str) -> dict:
                     pass
                 break
 
-        lamp = None
-        if "music_icon_app.png" in f_content or "icon_app.png" in f_content:
-            lamp = "AP+"
-        elif "music_icon_ap.png" in f_content or "icon_ap.png" in f_content:
-            lamp = "AP"
-        elif "music_icon_fcp.png" in f_content or "icon_fcp.png" in f_content:
-            lamp = "FC+"
-        elif "music_icon_fc.png" in f_content or "icon_fc.png" in f_content:
-            lamp = "FC"
+        lamp = next((l for icon, l in [("app", "AP+"), ("ap", "AP"), ("fcp", "FC+"), ("fc", "FC")] if f"icon_{icon}.png" in b), None)
 
-        songs[(title, chart_type)] = {
+        songs.append({
             "title": title,
+            "raw_title": raw_title,
             "type": chart_type,
+            "level_disp": level_disp,
             "played": played,
             "percent": percent,
             "achievement": achieve_val,
             "lamp": lamp
-        }
-
+        })
     return songs
 
-def update_song_constants(api_url: str = "https://www.diving-fish.com/api/maimaidxprober/music_data") -> list:
-    print(f"Fetching latest chart constants from {api_url}...")
-    res = requests.get(api_url, timeout=15)
-    if res.status_code != 200:
-        raise ConnectionError(f"Failed to fetch song constants (HTTP {res.status_code})")
+import song_manager
 
-    songs = res.json()
-    new_template = []
+def sync_clal(user_id: str, clal: str | None = None, progress_callback = None) -> dict:
+    if is_sega_maintenance():
+        raise ConnectionError("SEGA maimai DX NET is currently undergoing daily server maintenance (04:00 - 07:00 JST). Sync is unavailable during this time. Please try again after 07:00 JST.")
 
-    for s in songs:
-        raw_title = s.get("title", "").strip()
-        title = raw_title if raw_title else "\u200b"
-        c_type = "DX" if s.get("type") == "DX" else "Standard"
-        ver = s.get("basic_info", {}).get("from", "maimai")
-        ds = s.get("ds", [])
-
-        if len(ds) >= 4:
-            new_template.append({
-                "title": title,
-                "level": f"{ds[3]:.1f}",
-                "type": c_type,
-                "version": ver,
-                "diff": "MASTER"
-            })
-
-        if len(ds) >= 5:
-            new_template.append({
-                "title": title,
-                "level": f"{ds[4]:.1f}",
-                "type": c_type,
-                "version": ver,
-                "diff": "RE_MASTER"
-            })
-
-    out_file = Path("data/charts_template.json")
-    with open(out_file, "w", encoding="utf-8") as f:
-        json.dump(new_template, f, indent=2, ensure_ascii=False)
-
-    print(f"Updated data/charts_template.json ({len(new_template)} charts from {len(songs)} songs).")
-    return new_template
-
-def sync_sega_direct(user_id: str = "kalta", cookie_or_token: str = "", region: str = "intl") -> dict:
-    """
-    Directly fetches scores and player profile from SEGA maimai DX NET using a CLAL / _t token.
-    """
     user_dir = Path(f"users/{user_id}")
     user_dir.mkdir(parents=True, exist_ok=True)
     records_dir = user_dir / "records"
     records_dir.mkdir(exist_ok=True)
-
     token_file = user_dir / "auth_token.txt"
-    if not cookie_or_token:
+
+    if not clal:
         if token_file.exists():
-            cookie_or_token = token_file.read_text(encoding="utf-8").strip()
+            clal = token_file.read_text(encoding="utf-8").strip()
+        elif (records_dir / "auth_token.txt").exists():
+            clal = (records_dir / "auth_token.txt").read_text(encoding="utf-8").strip()
         else:
-            raise ValueError("No authentication token provided. Please enter your CLAL or _t token.")
+            raise ValueError(f"No auth token provided and no saved token found for '{user_id}'.")
 
-    config = BASE_URLS.get(region, BASE_URLS["intl"])
-    base_url = config["net"]
-    site_id = config["site_id"]
-    target_domain = config["domain"]
-
-    cookies = parse_cookie_input(cookie_or_token)
+    cookie_dict = parse_cookie_input(clal)
+    if not cookie_dict:
+        raise ValueError("Invalid cookie format. Provide a 64-char CLAL token or full cookie string.")
 
     session = requests.Session()
     session.headers.update(HEADERS)
-    session.headers["Referer"] = f"{base_url}/"
 
-    # Set cookies across domains
-    for k, v in cookies.items():
-        session.cookies.set(k, v, domain=target_domain)
+    for k, v in cookie_dict.items():
+        session.cookies.set(k, v, domain="maimaidx-eng.com")
         session.cookies.set(k, v, domain=".am-all.net")
-        session.cookies.set(k, v, domain="lng-tgk-aime-gw.am-all.net")
 
-    # If CLAL was passed, hit the Aime common_auth gateway to exchange it for _t on maimaidx-eng.com
-    if "CLAL" in cookies or "clal" in cookies:
-        auth_gateway_url = f"https://lng-tgk-aime-gw.am-all.net/common_auth/login?site_id={site_id}&redirect_url={base_url}/&back_url=https://maimai.sega.com/"
+    if "clal" in cookie_dict or "CLAL" in cookie_dict:
         try:
-            session.get(auth_gateway_url, allow_redirects=True, timeout=12)
+            session.get(AUTH_GATEWAY_URL, allow_redirects=True, timeout=12)
         except Exception as e:
-            print(f"Auth gateway exchange note: {e}")
+            raise ConnectionError(f"Aime gateway authentication failed: {e}")
 
-    # 1. Fetch and Verify Player Data
-    player_url = f"{base_url}/playerData"
+    player_url = f"{BASE_URL}/playerData"
     res = session.get(player_url, allow_redirects=True, timeout=15)
 
     if "/error" in res.url.lower() or "/login" in res.url.lower() or "ERROR CODE" in res.text or "エラーコード" in res.text:
-        raise ValueError("SEGA session expired or invalid token.\n\nPlease log in on maimaidx-eng.com (or lng-tgk-aime-gw.am-all.net) and copy your CLAL or _t token.")
+        raise ValueError("SEGA session expired or invalid token.\nPlease log in on lng-tgk-aime-gw.am-all.net and copy your CLAL token.")
 
     if "name_block" not in res.text:
-        raise ValueError(f"Unexpected page returned from SEGA (URL: {res.url}). Please verify your token.")
+        raise ValueError(f"Unexpected page returned from SEGA. Please verify your token.")
 
     player_data = parse_player_data(res.text)
-    token_file.write_text(cookie_or_token, encoding="utf-8")
+    token_file.write_text(clal, encoding="utf-8")
 
-    # 2. Fetch Master Charts (diff=3)
-    master_res = session.get(f"{base_url}/record/musicGenre/search", params={"genre": 99, "diff": 3}, timeout=25)
-    master_songs = parse_song_cards(master_res.text)
+    if progress_callback:
+        progress_callback("auth", player_data, None)
 
-    # 3. Fetch Re:Master Charts (diff=4)
-    remaster_res = session.get(f"{base_url}/record/musicGenre/search", params={"genre": 99, "diff": 4}, timeout=25)
-    remaster_songs = parse_song_cards(remaster_res.text)
+    # Fetch player's scores across all 5 difficulties (5 requests total)
+    diff_songs = {}
+    for diff_idx, diff_name in enumerate(DIFF_NAMES):
+        if progress_callback:
+            progress_callback("fetching", diff_name, None)
+        try:
+            diff_res = session.get(
+                f"{BASE_URL}/record/musicGenre/search",
+                params={"genre": 99, "diff": diff_idx},
+                timeout=25
+            )
+            cards = parse_song_cards(diff_res.text)
+            diff_songs[diff_name] = cards
+            if progress_callback:
+                progress_callback("complete", diff_name, len(cards))
+        except Exception as e:
+            print(f"Warning: Failed to fetch {diff_name} records: {e}")
+            diff_songs[diff_name] = []
+            if progress_callback:
+                progress_callback("error", diff_name, 0)
 
-    # 4. Load Master Charts Template
-    template_path = Path("data/charts_template.json")
-    if not template_path.exists():
-        update_song_constants()
+    if progress_callback:
+        progress_callback("saving", None, None)
 
-    template_charts = load_json(template_path, [])
+    # Ensure charts template exists
+    template_file = Path("data/charts_template.json")
+    if not template_file.exists():
+        song_manager.update_song_database()
+
+    template_charts = load_json(template_file, [])
     version_groups = {}
     for c in template_charts:
-        key = (c["version"], c["diff"])
-        version_groups.setdefault(key, []).append(c)
+        version_groups.setdefault((c["version"], c["diff"]), []).append(c)
 
-    # 5. Populate and Save All 54 Version Files
+    # Populate and write user record files by version and difficulty
     for (ver_name, diff_name), charts in version_groups.items():
-        diff_source = master_songs if diff_name == "MASTER" else remaster_songs
-        populated_list = []
+        scraped_list = diff_songs.get(diff_name, [])
+        cards_by_key = {}
+        for card in scraped_list:
+            k = (card["title"], card["type"])
+            cards_by_key.setdefault(k, []).append(card)
 
+        populated_list = []
         for c in charts:
-            title = c["title"]
-            c_type = c["type"]
+            norm_t = normalize_title(c["title"])
+            c_type = c.get("type", "Standard")
+            
+            # Find scraped card match
+            scraped = None
+            candidates = cards_by_key.get((norm_t, c_type), []) or cards_by_key.get((c["title"], c_type), [])
+            if candidates:
+                scraped = candidates[0]
+            elif scraped_list:
+                # Song is absent on SEGA DX NET -> removed from game, skip
+                continue
+
             level_str = c["level"]
-            norm_t = normalize_title(title)
-            scraped = diff_source.get((norm_t, c_type)) or diff_source.get((title, c_type))
+            level_val = float(level_str)
+
             if scraped and scraped["played"]:
-                level_float = float(level_str)
-                achieve_pct = scraped["achievement"]
-                single_rating = calc_single_rating(level_float, achieve_pct)
-                row_dict = {
-                    "title": title,
+                single_rating = calc_single_rating(level_val, scraped["achievement"])
+                row = {
+                    "title": c["title"],
                     "level": level_str,
                     "type": c_type,
                     "played": True,
-                    "lamp": scraped["lamp"],
-                    "rating": str(single_rating),
-                    "percent": scraped["percent"]
+                    "percent": scraped["percent"],
+                    "rating": str(single_rating)
                 }
+                if scraped.get("lamp"):
+                    row["lamp"] = scraped["lamp"]
+                populated_list.append(row)
             else:
-                row_dict = {
-                    "title": title,
+                populated_list.append({
+                    "title": c["title"],
                     "level": level_str,
                     "type": c_type,
                     "played": False
-                }
-            populated_list.append(row_dict)
+                })
 
         out_path = records_dir / f"{ver_name}_{diff_name}.json"
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(populated_list, f, indent=2, ensure_ascii=False)
 
-    # 6. Run Overpower Calculations
-    versions_data = calculate_for_user(user_id, player_data=player_data)
+    calculate_for_user(user_id, player_data=player_data)
 
     return {
-        "user_id": user_id,
+        "status": "success",
         "player_data": player_data,
-        "versions_count": len(versions_data),
-        "master_count": len(master_songs),
-        "remaster_count": len(remaster_songs)
+        "scraped_counts": {k: len(v) for k, v in diff_songs.items()},
+        "versions_count": len(version_groups)
     }
 
-# ==========================================
-# 2. Maishift Web Scraper (Playwright Sync)
-# ==========================================
-
-async def run_maishift_sync(user_id: str = "kalta"):
-    from playwright.async_api import async_playwright
-    from playwright.async_api import TimeoutError as PlaywrightTimeoutError
-
-    user_dir = Path(f"users/{user_id}")
-    user_dir.mkdir(parents=True, exist_ok=True)
-    records_dir = user_dir / "records"
-    records_dir.mkdir(exist_ok=True)
-
-    versions = load_json("data/versions.json", [])
-    history = load_json(user_dir / "history.json", [])
-
-    existing_play_count = history[-1].get("play_count") if history else None
-    existing_username = history[-1].get("username") if history else None
-
-    sem = asyncio.Semaphore(5)
-
-    async def scrape_page_rows(page):
-        await page.wait_for_selector("tr.chakra-table__row", timeout=10000)
-        return await page.evaluate('''() => {
-            return Array.from(document.querySelectorAll("tr.chakra-table__row")).map(tr => {
-                return Array.from(tr.querySelectorAll("td")).map(td => td.innerText.trim());
-            });
-        }''')
-
-    def clean_maishift_data(data):
-        clean = []
-        allowed_badges = {"FC", "FC+", "AP", "AP+"}
-        for row in data:
-            if len(row) < 9:
-                continue
-            level, chart_type, raw_title = row[1], row[2], row[3]
-            title = raw_title if raw_title else "\u200b"
-            lamp_raw = row[5]
-            lamp = lamp_raw if lamp_raw in allowed_badges else None
-            rating = row[7] or "0"
-            percent = row[8]
-            played = bool(percent and "%" in percent)
-            row_dict = {"title": title, "level": level, "type": chart_type, "played": played}
-            if played:
-                row_dict.update({"lamp": lamp, "rating": rating, "percent": percent})
-            clean.append(row_dict)
-        return clean
-
-    async def fetch_version(browser, url, v_name, diff):
-        data_path = records_dir / f"{v_name}_{diff}.json"
-        async with sem:
-            page = await browser.new_page()
-            try:
-                await page.goto(url, timeout=60000, wait_until="domcontentloaded")
-                await page.wait_for_load_state("networkidle")
-                await page.locator("button:has(svg.tabler-icon-list)").click()
-                await page.wait_for_timeout(3000)
-                data = await scrape_page_rows(page)
-                with open(data_path, "w", encoding="utf-8") as f:
-                    json.dump(clean_maishift_data(data), f, indent=2, ensure_ascii=False)
-            except Exception as e:
-                print(f"Error scraping {v_name} {diff}: {e}")
-            finally:
-                await page.close()
-
-    tasks = []
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        page = await browser.new_page()
-        await page.goto(f"https://maimai.shiftpsh.com/en/profile/{user_id}", timeout=60000, wait_until="domcontentloaded")
-        await page.wait_for_load_state("networkidle")
-        icon_img = page.locator("img[src*='Icon']").first
-        raw_name = await icon_img.locator("+ div span").first.text_content()
-        label = page.get_by_text("Play #", exact=True)
-        raw_text = await label.locator("..").locator("+ div").text_content()
-        await page.close()
-
-        player_data = {
-            "username": raw_name.strip(),
-            "play_count": raw_text.split("(")[0].strip().replace(",", "")
-        }
-
-        has_changed = not (existing_play_count == player_data["play_count"] and existing_username == player_data["username"])
-
-        for v_idx, version in enumerate(versions):
-            for diff in ["MASTER", "RE_MASTER"]:
-                rec_path = records_dir / f"{version}_{diff}.json"
-                if has_changed or not rec_path.exists():
-                    url = f'https://maimai.shiftpsh.com/en/profile/{user_id}/records?v="{v_idx}"&difficulty={diff}&sort=level&order=desc&n=false'
-                    tasks.append(fetch_version(browser, url, version, diff))
-
-        if tasks:
-            await asyncio.gather(*tasks, return_exceptions=True)
-        await browser.close()
-
-    calculate_for_user(user_id, player_data=player_data)
-    return player_data
-
-# ==========================================
-# 3. CLI Entry Point
-# ==========================================
+sync_sega_direct = sync_clal
 
 if __name__ == "__main__":
     import sys
-    if "--update-constants" in sys.argv:
-        update_song_constants()
-    elif "--maishift" in sys.argv:
-        target = sys.argv[2] if len(sys.argv) > 2 else "kalta"
-        asyncio.run(run_maishift_sync(target))
+    if "--update-constants" in sys.argv or "--update" in sys.argv:
+        song_manager.update_song_database()
     else:
-        target = sys.argv[1] if len(sys.argv) > 1 else "kalta"
+        target = sys.argv[1] if len(sys.argv) > 1 else ""
         token = sys.argv[2] if len(sys.argv) > 2 else ""
         try:
-            sync_sega_direct(target, token)
+            sync_clal(target, token)
         except Exception as e:
             print(f"Sync error: {e}")

@@ -21,6 +21,26 @@ def calc_op(played, level_str, lamp, rating_str, percent_str):
         return (level + 2.0) * 5.0 + combo_bonus + score_bonus
     return 0.0
 
+def calc_possession_plate(min_score: float, op_percent: float) -> int:
+    """
+    Calculates possession plate tier (0=None, 1=Silver, 2=Gold, 3=Platinum, 4=Rainbow)
+    based on the lowest score achieved across charts and the OP percentage.
+    - Rainbow (4): min_score >= 100.0% (all SSS+) and op_percent >= 97.0%
+    - Platinum (3): min_score >= 99.0% (all SSS) and op_percent >= 95.0%
+    - Gold (2): min_score >= 98.0% (all SS) and op_percent >= 93.0%
+    - Silver (1): min_score >= 97.0% (all S)
+    - None (0): min_score < 97.0% (or unplayed charts present)
+    """
+    if min_score >= 100.0 and op_percent >= 97.0:
+        return 4
+    if min_score >= 99.0 and op_percent >= 95.0:
+        return 3
+    if min_score >= 98.0 and op_percent >= 93.0:
+        return 2
+    if min_score >= 97.0:
+        return 1
+    return 0
+
 def load_json(path, default=None):
     if default is None:
         default = []
@@ -30,7 +50,33 @@ def load_json(path, default=None):
     except (FileNotFoundError, json.JSONDecodeError):
         return default
 
-def calculate_for_user(user_id: str = "kalta", player_data: dict = None):
+LEVEL_FOLDERS_ORDER = [
+    "1", "2", "3", "4", "5", "6",
+    "7", "7+", "8", "8+", "9", "9+",
+    "10", "10+", "11", "11+", "12", "12+",
+    "13", "13+", "14", "14+", "15"
+]
+
+def get_level_folder(level_ds: float | str) -> str:
+    val = round(float(level_ds), 1)
+    base = int(val)
+    frac = round(val - base, 1)
+    if base < 7:
+        return str(base)
+    if base >= 15:
+        return "15"
+    return f"{base}+" if frac >= 0.7 else str(base)
+
+def level_sort_key(folder_name: str) -> float:
+    try:
+        clean = folder_name.replace("Lv", "").replace("LV", "").strip()
+        if clean.endswith("+"):
+            return float(clean[:-1]) + 0.5
+        return float(clean)
+    except ValueError:
+        return 999.0
+
+def calculate_for_user(user_id: str = "kalta", player_data: dict | None = None):
     user_dir = Path(f"users/{user_id}")
     user_dir.mkdir(parents=True, exist_ok=True)
     records_dir = user_dir / "records"
@@ -90,16 +136,7 @@ def calculate_for_user(user_id: str = "kalta", player_data: dict = None):
             else 0.0
         )
 
-        if min_score >= 100.0 and op_percent >= 97.0:
-            possession = 4
-        elif min_score >= 99.0 and op_percent >= 95.0:
-            possession = 3
-        elif min_score >= 98.0 and op_percent >= 93.0:
-            possession = 2
-        elif min_score >= 97.0:
-            possession = 1
-        else:
-            possession = 0
+        possession = calc_possession_plate(min_score, op_percent)
        
         versions_data.append({
             "version": version,
@@ -108,7 +145,7 @@ def calculate_for_user(user_id: str = "kalta", player_data: dict = None):
             "version_max_op": round(version_max_op, 2)
         })
 
-    all_possession = min((item.get("possession", 0) for item in versions_data), default=4)
+    all_possession = min((item.get("possession", 0) for item in versions_data), default=0)
 
     all_entry = {
         "version": "ALL",
@@ -118,14 +155,61 @@ def calculate_for_user(user_id: str = "kalta", player_data: dict = None):
     }
     versions_data.append(all_entry)
 
+    # Calculate Level Folders (Lv 1~15 with subdivisions)
+    diff_names = ["BASIC", "ADVANCED", "EXPERT", "MASTER", "RE_MASTER"]
+    level_buckets = {k: [] for k in LEVEL_FOLDERS_ORDER}
+
+    for version in versions:
+        for d_name in diff_names:
+            c_list = load_json(records_dir / f"{version}_{d_name}.json", [])
+            for chart in c_list:
+                lvl_str = chart.get("level")
+                if lvl_str:
+                    folder = get_level_folder(lvl_str)
+                    if folder not in level_buckets:
+                        level_buckets[folder] = []
+                    chart_copy = dict(chart)
+                    chart_copy["diff"] = d_name
+                    chart_copy["version"] = version
+                    level_buckets[folder].append(chart_copy)
+
+    levels_data = []
+    for folder in LEVEL_FOLDERS_ORDER:
+        charts = level_buckets.get(folder, [])
+        if not charts:
+            continue
+
+        l_op = sum(calc_op(c.get("played", False), c["level"], c.get("lamp"), c.get("rating", "0"), c.get("percent", "0%")) for c in charts)
+        l_max_op = sum((float(c["level"]) + 3.0) * 5.0 for c in charts)
+        pct = (l_op / l_max_op * 100) if l_max_op > 0 else 0.0
+
+        all_p = all(c.get("played", False) for c in charts)
+        min_s = min((float(c.get("percent", "0%").rstrip("%")) for c in charts), default=0.0) if all_p else 0.0
+        played_cnt = sum(1 for c in charts if c.get("played"))
+
+        pos = calc_possession_plate(min_s, pct)
+
+        levels_data.append({
+            "level": folder,
+            "possession": pos,
+            "level_op": round(l_op, 2),
+            "level_max_op": round(l_max_op, 2),
+            "op_percent": round(pct, 2),
+            "total_charts": len(charts),
+            "played_charts": played_cnt,
+            "min_score": round(min_s, 4) if all_p else 0.0
+        })
+
     # Historical snapshots in history.json
     history_file = user_dir / "history.json"
     history = load_json(history_file, [])
 
     prev_snapshot_map = {}
+    prev_levels_map = {}
     if history:
         last_snapshot = history[-1]
         prev_snapshot_map = {item["version"]: item for item in last_snapshot.get("data", [])}
+        prev_levels_map = {item["level"]: item for item in last_snapshot.get("levels_data", [])}
 
     # Calculate deltas for each version
     for item in versions_data:
@@ -138,47 +222,53 @@ def calculate_for_user(user_id: str = "kalta", player_data: dict = None):
             item["delta_op"] = 0.0
             item["delta_possession"] = 0
 
-    # Determine username and play_count
-    username = user_id
-    play_count = ""
-    if player_data:
-        username = player_data.get("username", user_id)
-        play_count = player_data.get("play_count", "")
-    elif history:
-        username = history[-1].get("username", user_id)
-        play_count = history[-1].get("play_count", "")
+    # Calculate deltas for each level folder
+    for item in levels_data:
+        lvl_name = item["level"]
+        prev = prev_levels_map.get(lvl_name)
+        if prev:
+            item["delta_op"] = round(item["level_op"] - prev.get("level_op", item["level_op"]), 2)
+            item["delta_possession"] = item["possession"] - prev.get("possession", item["possession"])
+        else:
+            item["delta_op"] = 0.0
+            item["delta_possession"] = 0
 
+    # Determine username and play counts
+    meta = player_data or (history[-1] if history else {})
+    username = meta.get("username", user_id)
+    play_count = meta.get("play_count", "")
+    version_play_count = meta.get("version_play_count", "")
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    # Check if data has changed compared to last snapshot
-    has_changed = True
-    if history:
-        last_data = history[-1].get("data", [])
-        last_comparison = [
-            (d["version"], d["version_op"], d["possession"]) for d in last_data
-        ]
-        curr_comparison = [
-            (d["version"], d["version_op"], d["possession"]) for d in versions_data
-        ]
-        has_changed = (last_comparison != curr_comparison)
+    last_v_comp = [(d["version"], d["version_op"], d["possession"]) for d in history[-1].get("data", [])] if history else None
+    curr_v_comp = [(d["version"], d["version_op"], d["possession"]) for d in versions_data]
+    last_l_comp = [(d["level"], d["level_op"], d["possession"]) for d in history[-1].get("levels_data", [])] if (history and "levels_data" in history[-1]) else None
+    curr_l_comp = [(d["level"], d["level_op"], d["possession"]) for d in levels_data]
 
-    if has_changed or not history:
+    has_changed = (not history) or (last_v_comp != curr_v_comp) or (last_l_comp != curr_l_comp)
+
+    if has_changed:
         history.append({
             "timestamp": timestamp,
             "username": username,
             "play_count": play_count,
-            "data": versions_data
+            "version_play_count": version_play_count,
+            "data": versions_data,
+            "levels_data": levels_data
         })
-        with open(history_file, "w", encoding="utf-8") as f:
-            json.dump(history, f, indent=2, ensure_ascii=False)
-    else:
-        if player_data and (history[-1].get("play_count") != play_count or history[-1].get("username") != username):
-            history[-1]["username"] = username
-            history[-1]["play_count"] = play_count
-            with open(history_file, "w", encoding="utf-8") as f:
-                json.dump(history, f, indent=2, ensure_ascii=False)
+    elif player_data:
+        history[-1].update({
+            "username": username,
+            "play_count": play_count,
+            "version_play_count": version_play_count,
+            "data": versions_data,
+            "levels_data": levels_data
+        })
 
-    print(f"[{user_id}] Calculation completed ({len(versions_data)} entries) -> saved to history.json.")
+    with open(history_file, "w", encoding="utf-8") as f:
+        json.dump(history, f, indent=2, ensure_ascii=False)
+
+    print(f"[{user_id}] Calculation completed ({len(versions_data)} versions, {len(levels_data)} levels) -> saved to history.json.")
     return versions_data
 
 def main():

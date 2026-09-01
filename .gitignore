@@ -1,6 +1,10 @@
-#default?
+# Default
 __pycache__/
 .vscode/
+*.pyc
 
-#user data
+# User & Private Auth Data
 users/
+records/
+.env
+auth_token.txt
