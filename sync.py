@@ -6,14 +6,12 @@ import requests
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from calculate import calculate_for_user, load_json
+import song_manager
 
 def is_sega_maintenance() -> bool:
     return 4 <= datetime.now(timezone(timedelta(hours=9))).hour < 7
 
 BASE_URL = "https://maimaidx-eng.com/maimai-mobile"
-
-SGIMERA_DATA_URL = "https://sgimera.github.io/mai_RatingAnalyzer/scripts_maimai/maidx_in_lv_data_circleplus.js"
-GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1JXFhqpow60lXYzETOXaqIRVIaIpWWxCsGCcE0piLLDw/export?format=csv&gid=859834814"
 
 AUTH_GATEWAY_URL = (
     "https://lng-tgk-aime-gw.am-all.net/common_auth/login"
@@ -34,36 +32,7 @@ RATING_COEFFS = [
     (10.0, 1.6), (0.0, 0.0)
 ]
 
-VERSION_MAP = {
-    "maimai": "maimai", "maimai PLUS": "maimai PLUS",
-    "maimai GreeN": "GreeN", "maimai GreeN PLUS": "GreeN PLUS",
-    "maimai ORANGE": "ORANGE", "maimai ORANGE PLUS": "ORANGE PLUS",
-    "maimai PiNK": "PiNK", "maimai PiNK PLUS": "PiNK PLUS",
-    "maimai MURASAKi": "MURASAKi", "maimai MURASAKi PLUS": "MURASAKi PLUS",
-    "maimai MiLK": "MiLK", "maimai MiLK PLUS": "MiLK PLUS", "MiLK PLUS": "MiLK PLUS",
-    "maimai FiNALE": "FiNALE", "maimai でらっくす": "DX", "maimai でらっくす PLUS": "DX PLUS",
-    "maimai でらっくす Splash": "Splash", "maimai でらっくす Splash PLUS": "Splash PLUS",
-    "maimai でらっくす UNiVERSE": "UNiVERSE", "maimai でらっくす UNiVERSE PLUS": "UNiVERSE PLUS",
-    "maimai でらっくす FESTiVAL": "FESTiVAL", "maimai でらっくす FESTiVAL PLUS": "FESTiVAL PLUS",
-    "maimai でらっくす BUDDiES": "BUDDiES", "maimai でらっくす BUDDiES PLUS": "BUDDiES PLUS",
-    "maimai でらっくす PRiSM": "PRiSM", "maimai でらっくす PRiSM PLUS": "PRiSM PLUS",
-    "maimai でらっくす CiRCLE": "CiRCLE", "maimai でらっくす CiRCLE PLUS": "CiRCLE PLUS",
-}
-
 DIFF_NAMES = ["BASIC", "ADVANCED", "EXPERT", "MASTER", "RE_MASTER"]
-
-DELETED_SONGS = {
-    "二息歩行",
-}
-
-SUPPLEMENTAL_CHARTS = [
-    {
-        "title": "Xaleid◆scopiX",
-        "type": "DX",
-        "version": "PRiSM PLUS",
-        "ds": [7.7, 11.0, 13.7, 14.9, 15.0]
-    }
-]
 
 def calc_single_rating(level: float, achieve: float) -> int:
     cap_achieve = min(100.5, achieve)
@@ -149,27 +118,6 @@ def parse_chart_type(block_html: str) -> str:
         return "DX"
     return "Standard"
 
-def level_matches(display_lvl: str, ds_val: float) -> bool:
-    """Checks if a display level string from SEGA DX NET matches a chart constant float."""
-    if not display_lvl:
-        return True
-    clean_lvl = display_lvl.strip().replace("Lv", "").replace("LV", "")
-    has_plus = clean_lvl.endswith("+")
-    try:
-        base_int = int(clean_lvl[:-1] if has_plus else clean_lvl)
-    except ValueError:
-        return True
-
-    ds_base = int(ds_val)
-    ds_frac = round(ds_val - ds_base, 1)
-
-    if base_int != ds_base:
-        return False
-    if base_int < 7 or base_int >= 15:
-        return True
-    expected_plus = (ds_frac >= 0.7)
-    return has_plus == expected_plus
-
 def parse_song_cards(html_text: str) -> list[dict]:
     songs = []
     for b in html_text.split('<div class="w_450')[1:]:
@@ -219,11 +167,10 @@ def parse_song_cards(html_text: str) -> list[dict]:
             "achievement": achieve_val,
             "lamp": lamp
         })
-    return songs
-
-import song_manager
-
 def sync_clal(user_id: str, clal: str | None = None, progress_callback = None) -> dict:
+    if not re.match(r"^[a-zA-Z0-9_\-]+$", user_id):
+        raise ValueError(f"Invalid user ID format: '{user_id}'")
+
     if is_sega_maintenance():
         raise ConnectionError("SEGA maimai DX NET is currently undergoing daily server maintenance (04:00 - 07:00 JST). Sync is unavailable during this time. Please try again after 07:00 JST.")
 
@@ -275,6 +222,7 @@ def sync_clal(user_id: str, clal: str | None = None, progress_callback = None) -
 
     # Fetch player's scores across all 5 difficulties (5 requests total)
     diff_songs = {}
+    failed_diffs = set()
     for diff_idx, diff_name in enumerate(DIFF_NAMES):
         if progress_callback:
             progress_callback("fetching", diff_name, None)
@@ -291,6 +239,7 @@ def sync_clal(user_id: str, clal: str | None = None, progress_callback = None) -
         except Exception as e:
             print(f"Warning: Failed to fetch {diff_name} records: {e}")
             diff_songs[diff_name] = []
+            failed_diffs.add(diff_name)
             if progress_callback:
                 progress_callback("error", diff_name, 0)
 
@@ -309,6 +258,9 @@ def sync_clal(user_id: str, clal: str | None = None, progress_callback = None) -
 
     # Populate and write user record files by version and difficulty
     for (ver_name, diff_name), charts in version_groups.items():
+        if diff_name in failed_diffs:
+            print(f"Skipping save for failed difficulty {diff_name} to preserve existing records.")
+            continue
         scraped_list = diff_songs.get(diff_name, [])
         cards_by_key = {}
         for card in scraped_list:

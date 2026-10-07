@@ -1,9 +1,17 @@
 import json
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
 
 COMBO_BONUSES = {"FC": 0.5, "FC+": 0.75, "AP": 1.0, "AP+": 1.25}
+
+LEVEL_FOLDERS_ORDER = [
+    "1", "2", "3", "4", "5", "6",
+    "7", "7+", "8", "8+", "9", "9+",
+    "10", "10+", "11", "11+", "12", "12+",
+    "13", "13+", "14", "14+", "15"
+]
 
 def calc_op(played, level_str, lamp, rating_str, percent_str):
     if not played:
@@ -25,9 +33,9 @@ def calc_possession_plate(min_score: float, op_percent: float) -> int:
     """
     Calculates possession plate tier (0=None, 1=Silver, 2=Gold, 3=Platinum, 4=Rainbow)
     based on the lowest score achieved across charts and the OP percentage.
-    - Rainbow (4): min_score >= 100.0% (all SSS+) and op_percent >= 97.0%
-    - Platinum (3): min_score >= 99.0% (all SSS) and op_percent >= 95.0%
-    - Gold (2): min_score >= 98.0% (all SS) and op_percent >= 93.0%
+    - Rainbow (4): min_score >= 100.0% (all SSS) and op_percent >= 97.0%
+    - Platinum (3): min_score >= 99.0% (all SS) and op_percent >= 95.0%
+    - Gold (2): min_score >= 98.0% (all S+) and op_percent >= 93.0%
     - Silver (1): min_score >= 97.0% (all S)
     - None (0): min_score < 97.0% (or unplayed charts present)
     """
@@ -50,13 +58,6 @@ def load_json(path, default=None):
     except (FileNotFoundError, json.JSONDecodeError):
         return default
 
-LEVEL_FOLDERS_ORDER = [
-    "1", "2", "3", "4", "5", "6",
-    "7", "7+", "8", "8+", "9", "9+",
-    "10", "10+", "11", "11+", "12", "12+",
-    "13", "13+", "14", "14+", "15"
-]
-
 def get_level_folder(level_ds: float | str) -> str:
     val = round(float(level_ds), 1)
     base = int(val)
@@ -76,58 +77,58 @@ def level_sort_key(folder_name: str) -> float:
     except ValueError:
         return 999.0
 
-def calculate_for_user(user_id: str = "kalta", player_data: dict | None = None):
+def calculate_for_user(user_id: str, player_data: dict | None = None):
+    if not re.match(r"^[a-zA-Z0-9_\-]+$", user_id):
+        raise ValueError(f"Invalid user ID format: '{user_id}'")
+
     user_dir = Path(f"users/{user_id}")
     user_dir.mkdir(parents=True, exist_ok=True)
     records_dir = user_dir / "records"
     records_dir.mkdir(exist_ok=True)
 
+    all_op = 0.0
+    all_max_op = 0.0
+    versions_data = []
+    diff_names = ["BASIC", "ADVANCED", "EXPERT", "MASTER", "RE_MASTER"]
+    level_buckets = {k: [] for k in LEVEL_FOLDERS_ORDER}
+
     versions = load_json("data/versions.json", [])
     if not versions:
         print("Warning: data/versions.json not found or empty.")
         return []
-
-    all_op = 0.0
-    all_max_op = 0.0
-    versions_data = []
-
     for version in versions:
         version_op = 0.0
         version_max_op = 0.0
-
         master_path = records_dir / f"{version}_MASTER.json"
         remaster_path = records_dir / f"{version}_RE_MASTER.json"
-
         master_list = load_json(master_path, [])
         remaster_list = load_json(remaster_path, [])
-
         if not master_list and not remaster_list:
             continue
-
-        remaster_dict = {chart["title"]: chart for chart in remaster_list}
-
+        remaster_dict = {
+            (chart["title"], chart.get("type", "Standard")): chart
+            for chart in remaster_list
+        }
         for master_chart in master_list:
             title = master_chart["title"]
-            remaster_chart = remaster_dict.get(title)
+            chart_type = master_chart.get("type", "Standard")
+            remaster_chart = remaster_dict.get((title, chart_type))
             target_chart = (
                 remaster_chart
                 if remaster_chart and float(remaster_chart["level"]) > float(master_chart["level"])
                 else master_chart
             )
-                    
             played = target_chart.get("played", False)
             level = target_chart["level"]
             lamp = target_chart.get("lamp")
             rating = target_chart.get("rating", "0")
             percent = target_chart.get("percent", "0%")
-            
             version_op += calc_op(played, level, lamp, rating, percent)
             version_max_op += (float(level) + 3.0) * 5.0
 
         all_op += version_op
         all_max_op += version_max_op
         op_percent = (version_op / version_max_op * 100) if version_max_op > 0 else 0.0
-
         combined_charts = master_list + remaster_list
         all_played = all(chart.get("played", False) for chart in combined_charts)
         min_score = (
@@ -146,7 +147,6 @@ def calculate_for_user(user_id: str = "kalta", player_data: dict | None = None):
         })
 
     all_possession = min((item.get("possession", 0) for item in versions_data), default=0)
-
     all_entry = {
         "version": "ALL",
         "possession": all_possession,
@@ -155,10 +155,6 @@ def calculate_for_user(user_id: str = "kalta", player_data: dict | None = None):
     }
     versions_data.append(all_entry)
 
-    # Calculate Level Folders (Lv 1~15 with subdivisions)
-    diff_names = ["BASIC", "ADVANCED", "EXPERT", "MASTER", "RE_MASTER"]
-    level_buckets = {k: [] for k in LEVEL_FOLDERS_ORDER}
-
     for version in versions:
         for d_name in diff_names:
             c_list = load_json(records_dir / f"{version}_{d_name}.json", [])
@@ -166,12 +162,10 @@ def calculate_for_user(user_id: str = "kalta", player_data: dict | None = None):
                 lvl_str = chart.get("level")
                 if lvl_str:
                     folder = get_level_folder(lvl_str)
-                    if folder not in level_buckets:
-                        level_buckets[folder] = []
                     chart_copy = dict(chart)
                     chart_copy["diff"] = d_name
                     chart_copy["version"] = version
-                    level_buckets[folder].append(chart_copy)
+                    level_buckets.setdefault(folder, []).append(chart_copy)
 
     levels_data = []
     for folder in LEVEL_FOLDERS_ORDER:
@@ -200,7 +194,6 @@ def calculate_for_user(user_id: str = "kalta", player_data: dict | None = None):
             "min_score": round(min_s, 4) if all_p else 0.0
         })
 
-    # Historical snapshots in history.json
     history_file = user_dir / "history.json"
     history = load_json(history_file, [])
 
@@ -211,7 +204,6 @@ def calculate_for_user(user_id: str = "kalta", player_data: dict | None = None):
         prev_snapshot_map = {item["version"]: item for item in last_snapshot.get("data", [])}
         prev_levels_map = {item["level"]: item for item in last_snapshot.get("levels_data", [])}
 
-    # Calculate deltas for each version
     for item in versions_data:
         v_name = item["version"]
         prev = prev_snapshot_map.get(v_name)
@@ -222,7 +214,6 @@ def calculate_for_user(user_id: str = "kalta", player_data: dict | None = None):
             item["delta_op"] = 0.0
             item["delta_possession"] = 0
 
-    # Calculate deltas for each level folder
     for item in levels_data:
         lvl_name = item["level"]
         prev = prev_levels_map.get(lvl_name)
@@ -233,19 +224,20 @@ def calculate_for_user(user_id: str = "kalta", player_data: dict | None = None):
             item["delta_op"] = 0.0
             item["delta_possession"] = 0
 
-    # Determine username and play counts
     meta = player_data or (history[-1] if history else {})
     username = meta.get("username", user_id)
     play_count = meta.get("play_count", "")
     version_play_count = meta.get("version_play_count", "")
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    last_v_comp = [(d["version"], d["version_op"], d["possession"]) for d in history[-1].get("data", [])] if history else None
-    curr_v_comp = [(d["version"], d["version_op"], d["possession"]) for d in versions_data]
-    last_l_comp = [(d["level"], d["level_op"], d["possession"]) for d in history[-1].get("levels_data", [])] if (history and "levels_data" in history[-1]) else None
-    curr_l_comp = [(d["level"], d["level_op"], d["possession"]) for d in levels_data]
-
-    has_changed = (not history) or (last_v_comp != curr_v_comp) or (last_l_comp != curr_l_comp)
+    prev_play_count = history[-1].get("play_count") if history else None
+    if not history:
+        has_changed = True
+    elif play_count and prev_play_count:
+        has_changed = (str(play_count) != str(prev_play_count))
+    else:
+        prev_all_op = next((item.get("version_op") for item in history[-1].get("data", []) if item.get("version") == "ALL"), None)
+        has_changed = (round(all_op, 2) != prev_all_op)
 
     if has_changed:
         history.append({
@@ -256,7 +248,7 @@ def calculate_for_user(user_id: str = "kalta", player_data: dict | None = None):
             "data": versions_data,
             "levels_data": levels_data
         })
-    elif player_data:
+    elif history:
         history[-1].update({
             "username": username,
             "play_count": play_count,

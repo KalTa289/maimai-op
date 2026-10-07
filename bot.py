@@ -1,4 +1,5 @@
 import os
+import time
 import asyncio
 from pathlib import Path
 from typing import Optional
@@ -7,14 +8,21 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from calculate import load_json, get_level_folder, LEVEL_FOLDERS_ORDER
+from calculate import (
+    load_json,
+    get_level_folder,
+    LEVEL_FOLDERS_ORDER,
+    calculate_for_user,
+    calc_op,
+    calc_possession_plate
+)
 from sync import sync_clal, is_sega_maintenance
-from card_generator import (
+from draw import (
     generate_profile_card,
     generate_levels_card,
     generate_history_graph_image,
     PLATE_NAMES,
-    PLATE_EMOJIS,)
+    PLATE_EMOJIS)
 
 # ==========================================
 # 1. Configuration & Constants
@@ -27,7 +35,7 @@ if Path(".env").exists():
             os.environ.setdefault(k.strip(), v.strip().strip("\"'"))
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
-INTENTS = discord.Intents.all()
+INTENTS = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=INTENTS)
 
 PLATE_GOALS = [
@@ -138,11 +146,24 @@ async def send_levels_profile(interaction: discord.Interaction, user: Optional[d
     history = get_user_history(user_id)
 
     if not history or not history[-1].get("levels_data"):
+        # Check if user has record files to calculate from
+        user_dir = Path(f"users/{user_id}/records")
+        if user_dir.exists() and list(user_dir.glob("*.json")):
+            await asyncio.to_thread(calculate_for_user, user_id)
+            history = get_user_history(user_id)
+
+    if not history or not history[-1].get("levels_data"):
         msg = f"No level folder records found for {target.mention}."
         if target.id == interaction.user.id:
             msg += "\nUse `/sync` to link and fetch your scores from SEGA maimai DX NET!"
         await interaction.followup.send(msg)
         return
+
+    # Auto-repair stale levels_data from previous single-version bug
+    tot_charts = sum(l.get("total_charts", 0) for l in history[-1].get("levels_data", []))
+    if tot_charts < 1000:
+        await asyncio.to_thread(calculate_for_user, user_id)
+        history = get_user_history(user_id)
 
     latest = history[-1]
     all_row = next((item for item in latest.get("data", []) if item.get("version") == "ALL"), None)
@@ -233,9 +254,16 @@ async def run_sync_with_progress(interaction: discord.Interaction, user_id: str,
     loop = asyncio.get_running_loop()
 
     initial_embed = make_progress_embed(steps, player_info["username"], "\n".join(status_note))
-    await interaction.followup.send(embed=initial_embed)
+    await interaction.followup.send(embed=initial_embed, ephemeral=True)
 
-    async def update_msg():
+    last_edit_time = 0.0
+
+    async def update_msg(force: bool = False):
+        nonlocal last_edit_time
+        now = time.time()
+        if not force and (now - last_edit_time < 1.2):
+            return
+        last_edit_time = now
         try:
             embed = make_progress_embed(steps, player_info["username"], "\n".join(status_note))
             await interaction.edit_original_response(embed=embed)
@@ -247,7 +275,7 @@ async def run_sync_with_progress(interaction: discord.Interaction, user_id: str,
             player_info["username"] = diff_name.get("username", "Player")
             status_note.clear()
             status_note.append(f"👤 Logged in as **{player_info['username']}** (Rating: {diff_name.get('rating', 0)})")
-            asyncio.run_coroutine_threadsafe(update_msg(), loop)
+            asyncio.run_coroutine_threadsafe(update_msg(force=True), loop)
         elif event == "fetching":
             steps[diff_name] = "fetching"
             asyncio.run_coroutine_threadsafe(update_msg(), loop)
@@ -257,7 +285,7 @@ async def run_sync_with_progress(interaction: discord.Interaction, user_id: str,
             asyncio.run_coroutine_threadsafe(update_msg(), loop)
         elif event == "saving":
             status_note.append("⚡ Calculating Overpower & Version Plate Ratings...")
-            asyncio.run_coroutine_threadsafe(update_msg(), loop)
+            asyncio.run_coroutine_threadsafe(update_msg(force=True), loop)
 
     try:
         res = await asyncio.to_thread(sync_clal, user_id, raw_token, on_progress)
@@ -291,10 +319,10 @@ class ClalSyncModal(discord.ui.Modal, title="maimai DX NET Sync"):
                 ),
                 color=0xf59e0b
             )
-            await interaction.response.send_message(embed=embed, ephemeral=False)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
 
-        await interaction.response.defer(ephemeral=False)
+        await interaction.response.defer(ephemeral=True)
         user_id = get_discord_user_id(interaction.user)
         raw_token = self.token_input.value.strip()
         await run_sync_with_progress(interaction, user_id, raw_token)
@@ -303,9 +331,12 @@ class ClalSyncModal(discord.ui.Modal, title="maimai DX NET Sync"):
 # 4. Slash Commands
 # ==========================================
 
+@bot.tree.command(name="login", description="Enter or update your maimai DX NET CLAL token privately.")
+async def login_cmd(interaction: discord.Interaction):
+    await interaction.response.send_modal(ClalSyncModal())
+
 @bot.tree.command(name="sync", description="Synchronize your latest maimai DX scores from SEGA using your CLAL token.")
-@app_commands.describe(token="New 64-char CLAL token (Leave blank to use saved token)")
-async def sync_cmd(interaction: discord.Interaction, token: Optional[str] = None):
+async def sync_cmd(interaction: discord.Interaction):
     if is_sega_maintenance():
         embed = discord.Embed(
             title="⚠️ SEGA Server Maintenance",
@@ -315,18 +346,18 @@ async def sync_cmd(interaction: discord.Interaction, token: Optional[str] = None
             ),
             color=0xf59e0b
         )
-        await interaction.response.send_message(embed=embed, ephemeral=False)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
         return
 
     user_id = get_discord_user_id(interaction.user)
     token_file = Path(f"users/{user_id}/auth_token.txt")
 
-    if not token and not token_file.exists():
+    if not token_file.exists():
         await interaction.response.send_modal(ClalSyncModal())
         return
 
-    await interaction.response.defer(ephemeral=False)
-    await run_sync_with_progress(interaction, user_id, token)
+    await interaction.response.defer(ephemeral=True)
+    await run_sync_with_progress(interaction, user_id, None)
 
 @bot.tree.command(name="versions", description="View your current Overpower, possession plates, and 27-version profile card.")
 @app_commands.describe(user="The user to look up (defaults to yourself)")
@@ -472,20 +503,23 @@ async def level_cmd(
     user_dir = Path(f"users/{user_id}/records")
     clean_lvl = level.replace("Lv", "").replace("LV", "").strip()
 
-    versions = load_json("data/versions.json", [])
-    diff_names = ["BASIC", "ADVANCED", "EXPERT", "MASTER", "RE_MASTER"]
-    level_charts = []
+    def load_level_charts():
+        versions = load_json("data/versions.json", [])
+        diff_names = ["BASIC", "ADVANCED", "EXPERT", "MASTER", "RE_MASTER"]
+        charts = []
+        for v in versions:
+            for d in diff_names:
+                c_list = load_json(user_dir / f"{v}_{d}.json", [])
+                for c in c_list:
+                    lvl_str = c.get("level")
+                    if lvl_str and get_level_folder(lvl_str) == clean_lvl:
+                        chart_copy = dict(c)
+                        chart_copy["diff"] = DIFF_SHORT_TAGS.get(d, d)
+                        chart_copy["version"] = v
+                        charts.append(chart_copy)
+        return charts
 
-    for v in versions:
-        for d in diff_names:
-            c_list = load_json(user_dir / f"{v}_{d}.json", [])
-            for c in c_list:
-                lvl_str = c.get("level")
-                if lvl_str and get_level_folder(lvl_str) == clean_lvl:
-                    chart_copy = dict(c)
-                    chart_copy["diff"] = DIFF_SHORT_TAGS.get(d, d)
-                    chart_copy["version"] = v
-                    level_charts.append(chart_copy)
+    level_charts = await asyncio.to_thread(load_level_charts)
 
     if not level_charts:
         await interaction.followup.send(
@@ -496,17 +530,16 @@ async def level_cmd(
     total_n = len(level_charts)
     played = [c for c in level_charts if c.get("played")]
 
-    history = get_user_history(user_id)
-    l_row = None
-    if history:
-        l_row = next((item for item in history[-1].get("levels_data", []) if item.get("level") == clean_lvl), None)
+    # Compute accurate live Overpower directly from level_charts
+    l_op = sum(calc_op(c.get("played", False), c["level"], c.get("lamp"), c.get("rating", "0"), c.get("percent", "0%")) for c in level_charts)
+    l_max = sum((float(c["level"]) + 3.0) * 5.0 for c in level_charts)
+    l_pct = (l_op / l_max * 100) if l_max > 0 else 0.0
 
-    pos = l_row.get("possession", 0) if l_row else 0
+    all_p = all(c.get("played", False) for c in level_charts)
+    min_s = min((get_chart_percent(c) for c in level_charts), default=0.0) if all_p else 0.0
+    pos = calc_possession_plate(min_s, l_pct)
     plate_name = PLATE_NAMES.get(pos, "None")
     plate_emoji = PLATE_EMOJIS.get(pos, "⬜")
-    l_op = float(l_row.get("level_op", 0.0)) if l_row else 0.0
-    l_max = float(l_row.get("level_max_op", 0.0)) if l_row else 0.0
-    l_pct = (l_op / l_max * 100) if l_max > 0 else 0.0
 
     target_key = target.value if target else "auto"
     if target_key == "auto":
@@ -582,9 +615,18 @@ async def graph_cmd(interaction: discord.Interaction, user: Optional[discord.Use
     graph_buf = await asyncio.to_thread(generate_history_graph_image, history)
     file = discord.File(graph_buf, filename="timeline_graph.png")
 
+    desc = f"Logged across **{len(history)}** snapshot{'s' if len(history) != 1 else ''}."
+    latest = history[-1]
+    all_row = next((item for item in latest.get("data", []) if item.get("version") == "ALL"), None)
+    if all_row:
+        op = float(all_row.get("version_op", 0.0))
+        max_op = float(all_row.get("version_max_op", 0.0))
+        pct = (op / max_op * 100) if max_op > 0 else 0.0
+        desc += f"\nCurrent: **{pct:.2f}%** ({op:,.1f} / {max_op:,.1f} OP)"
+
     embed = discord.Embed(
-        title=f"📈 {latest_name(history, target.display_name)}'s Overpower Growth",
-        description=f"Logged across **{len(history)}** snapshot{'s' if len(history) != 1 else ''}.",
+        title=f"📈 {latest_name(history, target.display_name)}'s Overpower % Growth",
+        description=desc,
         color=0x38bdf8
     )
     embed.set_image(url="attachment://timeline_graph.png")

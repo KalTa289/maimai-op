@@ -43309,6 +43309,13 @@
     "diff": "RE_MASTER"
   },
   {
+    "title": "相性×優勝ドロップス",
+    "level": "13.2",
+    "type": "DX",
+    "version": "CiRCLE PLUS",
+    "diff": "MASTER"
+  },
+  {
     "title": "うたかたよいかないで",
     "level": "13.2",
     "type": "DX",
@@ -43334,6 +43341,13 @@
     "level": "13.2",
     "type": "Standard",
     "version": "Splash PLUS",
+    "diff": "MASTER"
+  },
+  {
+    "title": "電脳眠眠猫",
+    "level": "13.2",
+    "type": "DX",
+    "version": "CiRCLE PLUS",
     "diff": "MASTER"
   },
   {
@@ -43810,6 +43824,13 @@
     "level": "12.8",
     "type": "DX",
     "version": "FESTiVAL",
+    "diff": "MASTER"
+  },
+  {
+    "title": "光線歌",
+    "level": "12.8",
+    "type": "DX",
+    "version": "CiRCLE PLUS",
     "diff": "MASTER"
   },
   {
@@ -45759,6 +45780,13 @@
     "diff": "EXPERT"
   },
   {
+    "title": "相性×優勝ドロップス",
+    "level": "10.5",
+    "type": "DX",
+    "version": "CiRCLE PLUS",
+    "diff": "EXPERT"
+  },
+  {
     "title": "キスキツネ",
     "level": "10.5",
     "type": "DX",
@@ -45850,6 +45878,13 @@
     "diff": "EXPERT"
   },
   {
+    "title": "電脳眠眠猫",
+    "level": "10.4",
+    "type": "DX",
+    "version": "CiRCLE PLUS",
+    "diff": "EXPERT"
+  },
+  {
     "title": "フキゲンワルツ",
     "level": "10.4",
     "type": "Standard",
@@ -45921,6 +45956,13 @@
   },
   {
     "title": "雑魚",
+    "level": "10.2",
+    "type": "DX",
+    "version": "CiRCLE PLUS",
+    "diff": "EXPERT"
+  },
+  {
+    "title": "光線歌",
     "level": "10.2",
     "type": "DX",
     "version": "CiRCLE PLUS",
@@ -48118,6 +48160,13 @@
     "diff": "ADVANCED"
   },
   {
+    "title": "相性×優勝ドロップス",
+    "level": "7.2",
+    "type": "DX",
+    "version": "CiRCLE PLUS",
+    "diff": "ADVANCED"
+  },
+  {
     "title": "ボックスワンターバ〜ン",
     "level": "7.2",
     "type": "DX",
@@ -48671,6 +48720,13 @@
     "diff": "ADVANCED"
   },
   {
+    "title": "電脳眠眠猫",
+    "level": "6.5",
+    "type": "DX",
+    "version": "CiRCLE PLUS",
+    "diff": "ADVANCED"
+  },
+  {
     "title": "Intergalactic Bound",
     "level": "6.5",
     "type": "DX",
@@ -48801,6 +48857,13 @@
     "level": "6.5",
     "type": "DX",
     "version": "BUDDiES",
+    "diff": "ADVANCED"
+  },
+  {
+    "title": "光線歌",
+    "level": "6.2",
+    "type": "DX",
+    "version": "CiRCLE PLUS",
     "diff": "ADVANCED"
   },
   {

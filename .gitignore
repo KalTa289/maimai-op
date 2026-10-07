@@ -2,6 +2,8 @@
 __pycache__/
 .vscode/
 *.pyc
+.agents/
+skills-lock.json
 
 # User & Private Auth Data
 users/

@@ -1,15 +1,41 @@
-import tkinter as tk
-from tkinter import ttk, messagebox, simpledialog
-from PIL import ImageTk
-import threading
-import ctypes
+import io
 from pathlib import Path
+from PIL import Image, ImageDraw, ImageFont
 
-from calculate import calculate_for_user, load_json, level_sort_key
-from sync import sync_sega_direct
-from card_generator import generate_gradient_badge, PLATE_COLORS, PLATE_NAMES, get_op_tier_color
+# ==========================================
+# 1. Colors, Palettes & Constants
+# ==========================================
 
-PLATE_NAMES = {4: "Rainbow", 3: "Platinum", 2: "Gold", 1: "Silver", 0: "—"}
+PLATE_COLORS = {
+    4: {"bg": (241, 218, 249), "fg": (37, 12, 56), "name": "Rainbow"},
+    3: {"bg": (255, 232, 168), "fg": (59, 43, 0), "name": "Platinum"},
+    2: {"bg": (252, 220, 48), "fg": (59, 43, 0), "name": "Gold"},
+    1: {"bg": (118, 217, 247), "fg": (4, 50, 74), "name": "Silver"},
+    0: {"bg": (30, 32, 36), "fg": (148, 163, 184), "name": "—"}
+}
+PLATE_NAMES = {k: v["name"] for k, v in PLATE_COLORS.items()}
+PLATE_EMOJIS = {4: "🌈", 3: "👑", 2: "🥇", 1: "🥈", 0: "⬜"}
+
+GRADIENT_STOPS = {
+    4: [(255, 230, 255), (248, 180, 235), (195, 165, 252), (130, 215, 255)],
+    3: [(248, 210, 135), (255, 246, 195)],
+    2: [(230, 170, 15), (255, 242, 45)],
+    1: [(90, 190, 226), (160, 238, 255)],
+    0: [(32, 35, 44), (42, 48, 56)],
+}
+
+DARK_BG = (24, 25, 28)
+TEXT_WHITE = (241, 245, 249)
+TEXT_MUTED = (148, 163, 184)
+ACCENT_CYAN = (56, 189, 248)
+GRID_LINE = (42, 45, 52)
+
+LEVELS_ORDER = [
+    "1", "2", "3", "4", "5", "6",
+    "7", "7+", "8", "8+", "9", "9+",
+    "10", "10+", "11", "11+", "12", "12+",
+    "13", "13+", "14", "14+", "15"
+]
 
 DARK_THEME = {
     "bg_main": "#18191c",
@@ -23,501 +49,349 @@ DARK_THEME = {
     "tree_head_bg": "#282b32",
 }
 
-def set_windows_dark_titlebar(root):
-    try:
-        root.update_idletasks()
-        hwnd = ctypes.windll.user32.GetParent(root.winfo_id()) or root.winfo_id()
-        val = ctypes.c_int(2)
-        ctypes.windll.dwmapi.DwmSetWindowAttribute(hwnd, 20, ctypes.byref(val), ctypes.sizeof(val))
-    except Exception:
-        pass
+# ==========================================
+# 2. Font & Drawing Utilities
+# ==========================================
 
-def format_delta(val, is_percent=False):
-    if val is None or abs(val) < 0.0001:
-        return "—"
-    sign = "+" if val > 0 else ""
-    suffix = "%" if is_percent else ""
-    return f"{sign}{val:.2f}{suffix}"
+def get_font(size: int, bold: bool = False):
+    font_candidates = [
+        "meiryob.ttc" if bold else "meiryo.ttc",
+        "YuGothB.ttc" if bold else "YuGothM.ttc",
+        "msgothic.ttc",
+        "malgunbd.ttf" if bold else "malgun.ttf",
+        "segoeuib.ttf" if bold else "segoeui.ttf",
+        "arialbd.ttf" if bold else "arial.ttf",
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc" if bold else "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc" if bold else "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/opentype/ipafont-gothic/ipag.ttf",
+        "/usr/share/fonts/truetype/fonts-japanese-gothic.ttf",
+        "NotoSansCJK-Bold.ttc" if bold else "NotoSansCJK-Regular.ttc",
+        "NotoSansCJK-Regular.ttc",
+        "ipag.ttf",
+    ]
+    for f in font_candidates:
+        try:
+            return ImageFont.truetype(f, size)
+        except (IOError, OSError):
+            continue
+    return ImageFont.load_default()
 
-class HistoryGraphCanvas(tk.Canvas):
-    def __init__(self, parent, **kwargs):
-        super().__init__(parent, bg=DARK_THEME["bg_card"], bd=0, highlightthickness=0, **kwargs)
-        self.points = []
-        self.dot_coords = []
-        self.bind("<Configure>", lambda e: self.draw_graph())
-        self.bind("<Motion>", self.on_mouse_move)
-        self.bind("<Leave>", lambda e: self.delete("tooltip"))
+def draw_text_outline(draw: ImageDraw.ImageDraw, pos, text: str, font, fill, outline=(0, 0, 0), outline_width: int = 1, anchor: str | None = None):
+    x, y = pos
+    if outline_width > 0:
+        for dx in range(-outline_width, outline_width + 1):
+            for dy in range(-outline_width, outline_width + 1):
+                if dx != 0 or dy != 0:
+                    draw.text((x + dx, y + dy), text, fill=outline, font=font, anchor=anchor)
+    draw.text((x, y), text, fill=fill, font=font, anchor=anchor)
 
-    def set_data(self, history_snapshots):
-        self.points = []
+def get_op_tier_color(pct: float) -> tuple[int, int, int]:
+    """Returns RGB text color based on OP percentage tier."""
+    if pct >= 97.0:
+        return (235, 140, 255)
+    if pct >= 95.0:
+        return (255, 242, 170)
+    if pct >= 93.0:
+        return (250, 204, 21)
+    if pct >= 90.0:
+        return (56, 189, 248)
+    return (160, 175, 195)
+
+def generate_gradient_badge(plate_id: int, width: int, height: int, radius: int = 6) -> Image.Image:
+    width, height = max(20, width), max(10, height)
+    stops = GRADIENT_STOPS.get(plate_id, GRADIENT_STOPS[0])
+    strip = Image.new("RGB", (len(stops), 1))
+    for i, color in enumerate(stops):
+        strip.putpixel((i, 0), color)
+    gradient = strip.resize((width, height), Image.Resampling.BILINEAR)
+
+    mask = Image.new("L", (width, height), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, width - 1, height - 1], radius=radius, fill=255)
+
+    rounded = Image.new("RGB", (width, height), DARK_BG)
+    rounded.paste(gradient, (0, 0), mask=mask)
+    outline_col = (0, 0, 0, 90) if plate_id > 0 else (60, 66, 78)
+    ImageDraw.Draw(rounded).rounded_rectangle([0, 0, width - 1, height - 1], radius=radius, outline=outline_col, width=1)
+    return rounded
+
+def _draw_card_header(img: Image.Image, latest_snapshot: dict, width: int = 840):
+    username = latest_snapshot.get("username", "Unknown")
+    play_count = str(latest_snapshot.get("play_count", "—"))
+    v_play_count = str(latest_snapshot.get("version_play_count", ""))
+    if play_count.isdigit():
+        tot_str = f"{int(play_count):,} plays"
+        if v_play_count.isdigit() and int(v_play_count) != int(play_count):
+            play_text = f"Plays: {tot_str}  ({int(v_play_count):,} this version)"
+        else:
+            play_text = f"Plays: {tot_str}"
+    else:
+        play_text = f"Plays: {play_count}"
+
+    timestamp = latest_snapshot.get("timestamp", "—")
+    all_row = next((item for item in latest_snapshot.get("data", []) if item.get("version") == "ALL"), None)
+    all_pos = all_row.get("possession", 0) if all_row else 0
+    all_op = float(all_row.get("version_op", 0.0)) if all_row else 0.0
+    all_max = float(all_row.get("version_max_op", 0.0)) if all_row else 0.0
+    all_pct = (all_op / all_max * 100) if all_max > 0 else 0.0
+    all_d_op = float(all_row.get("delta_op", 0.0)) if all_row else 0.0
+
+    banner_h = 100
+    banner_img = generate_gradient_badge(all_pos, width=width - 32, height=banner_h, radius=10)
+    img.paste(banner_img, (16, 16))
+
+    banner_draw = ImageDraw.Draw(img)
+    text_dark = (all_pos > 0)
+    col_main = (17, 24, 39) if text_dark else (248, 250, 252)
+    col_sub = (55, 65, 81) if text_dark else (148, 163, 184)
+    col_accent = (3, 7, 18) if text_dark else (226, 232, 240)
+
+    f_title = get_font(19, bold=True)
+    f_sub = get_font(13, bold=True)
+    f_stat = get_font(14, bold=True)
+    f_small = get_font(11, bold=False)
+
+    banner_draw.text((32, 30), f"Player: {username}", fill=col_main, font=f_title)
+    banner_draw.text((width - 40, 32), f"{timestamp}", fill=col_sub, font=f_small, anchor="ra")
+    banner_draw.text((32, 58), play_text, fill=col_sub, font=f_sub)
+
+    op_base_text = f"Overpower: {all_op:,.2f} / {all_max:,.2f} "
+    banner_draw.text((32, 82), op_base_text, fill=col_accent, font=f_stat)
+
+    bbox = banner_draw.textbbox((32, 82), op_base_text, font=f_stat)
+    pct_x = bbox[2]
+    all_pct_col = get_op_tier_color(all_pct)
+    draw_text_outline(banner_draw, (pct_x, 82), f"({all_pct:.3f}%)", f_stat, fill=all_pct_col, outline=(0, 0, 0), outline_width=1)
+
+    if abs(all_d_op) > 0.001:
+        d_sign = "+" if all_d_op > 0 else ""
+        d_col = (21, 128, 61) if all_d_op > 0 else (185, 28, 28)
+        banner_draw.text((width - 40, 82), f"(Δ {d_sign}{all_d_op:,.2f} OP)", fill=d_col, font=f_stat, anchor="ra")
+
+# ==========================================
+# 3. Card Image Generators
+# ==========================================
+
+def generate_profile_card(latest_snapshot: dict) -> io.BytesIO:
+    """Renders an 840x560 profile card PNG with 27-version grid."""
+    width, height = 840, 560
+    img = Image.new("RGB", (width, height), DARK_BG)
+    _draw_card_header(img, latest_snapshot, width)
+    draw = ImageDraw.Draw(img)
+
+    versions_data = [item for item in latest_snapshot.get("data", []) if item.get("version") != "ALL"]
+    cols, rows = 3, 9
+    card_margin_x = 16
+    start_y = 130
+    grid_w = width - (card_margin_x * 2)
+    col_w = (grid_w - (10 * (cols - 1))) // cols
+    row_h = 42
+
+    f_v_name = get_font(12, bold=True)
+    f_v_op = get_font(11, bold=False)
+    f_badge = get_font(11, bold=True)
+
+    cell_templates = {p_id: generate_gradient_badge(p_id, col_w, row_h, radius=6) for p_id in range(5)}
+
+    for i, v_item in enumerate(versions_data):
+        c, r = i % cols, i // cols
+        vx = card_margin_x + c * (col_w + 10)
+        vy = start_y + r * (row_h + 5)
+
+        pos = v_item.get("possession", 0)
+        v_name = v_item.get("version", "")
+        v_op = float(v_item.get("version_op", 0.0))
+        v_max = float(v_item.get("version_max_op", 0.0))
+        v_pct = (v_op / v_max * 100) if v_max > 0 else 0.0
+        d_op = float(v_item.get("delta_op", 0.0))
+
+        p_info = PLATE_COLORS.get(pos, PLATE_COLORS[0])
+        img.paste(cell_templates[pos], (vx, vy))
+
+        cell_fg = p_info["fg"] if pos > 0 else TEXT_MUTED
+        pct_color = get_op_tier_color(v_pct)
+
+        draw.text((vx + 10, vy + 8), v_name, fill=cell_fg, font=f_v_name)
+        draw_text_outline(draw, (vx + col_w - 10, vy + 8), f"{v_pct:.1f}%", f_badge, fill=pct_color, outline=(0, 0, 0), outline_width=1, anchor="ra")
+        draw.text((vx + 10, vy + 24), f"{v_op:,.1f} / {v_max:,.1f}", fill=cell_fg, font=f_v_op)
+
+        if d_op > 0.001:
+            gain_text = f"{p_info['name']} (+{d_op:,.1f})"
+            gain_color = (22, 163, 74) if pos > 0 else (34, 197, 94)
+            draw.text((vx + col_w - 10, vy + 24), gain_text, fill=gain_color, font=f_badge, anchor="ra")
+        elif d_op < -0.001:
+            gain_text = f"{p_info['name']} ({d_op:,.1f})"
+            gain_color = (220, 38, 38) if pos > 0 else (239, 68, 68)
+            draw.text((vx + col_w - 10, vy + 24), gain_text, fill=gain_color, font=f_badge, anchor="ra")
+        else:
+            draw.text((vx + col_w - 10, vy + 24), p_info["name"], fill=cell_fg, font=f_v_op, anchor="ra")
+
+    out_buf = io.BytesIO()
+    img.save(out_buf, format="PNG")
+    out_buf.seek(0)
+    return out_buf
+
+def generate_levels_card(latest_snapshot: dict) -> io.BytesIO:
+    """Renders an 840x560 profile card PNG with 23-level folders grid."""
+    width, height = 840, 560
+    img = Image.new("RGB", (width, height), DARK_BG)
+    _draw_card_header(img, latest_snapshot, width)
+    draw = ImageDraw.Draw(img)
+
+    levels_map = {item.get("level"): item for item in latest_snapshot.get("levels_data", [])}
+    cols, rows = 3, 8
+    card_margin_x = 16
+    start_y = 126
+    grid_w = width - (card_margin_x * 2)
+    col_w = (grid_w - (10 * (cols - 1))) // cols
+    row_h = 46
+
+    f_v_name = get_font(12, bold=True)
+    f_v_op = get_font(10, bold=False)
+    f_badge = get_font(11, bold=True)
+
+    cell_templates = {p_id: generate_gradient_badge(p_id, col_w, row_h, radius=6) for p_id in range(5)}
+
+    for i, lvl in enumerate(LEVELS_ORDER):
+        c, r = i % cols, i // cols
+        vx = card_margin_x + c * (col_w + 10)
+        vy = start_y + r * (row_h + 6)
+
+        item = levels_map.get(lvl, {})
+        pos = item.get("possession", 0)
+        v_op = float(item.get("level_op", 0.0))
+        v_max = float(item.get("level_max_op", 0.0))
+        v_pct = float(item.get("op_percent", 0.0))
+        played = item.get("played_charts", 0)
+        tot = item.get("total_charts", 0)
+        d_op = float(item.get("delta_op", 0.0))
+
+        p_info = PLATE_COLORS.get(pos, PLATE_COLORS[0])
+        img.paste(cell_templates[pos], (vx, vy))
+
+        cell_fg = p_info["fg"] if pos > 0 else TEXT_MUTED
+        pct_color = get_op_tier_color(v_pct)
+
+        draw.text((vx + 10, vy + 7), f"Lv {lvl}", fill=cell_fg, font=f_v_name)
+        draw_text_outline(draw, (vx + col_w - 10, vy + 7), f"{v_pct:.1f}%", f_badge, fill=pct_color, outline=(0, 0, 0), outline_width=1, anchor="ra")
+        draw.text((vx + 10, vy + 26), f"{v_op:,.1f} / {v_max:,.1f}", fill=cell_fg, font=f_v_op)
+        p_name = p_info["name"]
+        prog_str = f"{p_name} ({played}/{tot})" if tot > 0 else p_name
+
+        if d_op > 0.001:
+            gain_text = f"{prog_str} (+{d_op:,.1f})"
+            gain_color = (22, 163, 74) if pos > 0 else (34, 197, 94)
+            draw.text((vx + col_w - 10, vy + 26), gain_text, fill=gain_color, font=f_badge, anchor="ra")
+        elif d_op < -0.001:
+            gain_text = f"{prog_str} ({d_op:,.1f})"
+            gain_color = (220, 38, 38) if pos > 0 else (239, 68, 68)
+            draw.text((vx + col_w - 10, vy + 26), gain_text, fill=gain_color, font=f_badge, anchor="ra")
+        else:
+            draw.text((vx + col_w - 10, vy + 26), prog_str, fill=cell_fg, font=f_v_op, anchor="ra")
+
+    out_buf = io.BytesIO()
+    img.save(out_buf, format="PNG")
+    out_buf.seek(0)
+    return out_buf
+
+def extract_history_points(history_snapshots: list) -> list[dict]:
+    """Shared utility to extract valid increasing/fallback OP % points from snapshots."""
+    points = []
+    last_op = 0.0
+    for snap in history_snapshots:
+        ts = snap.get("timestamp", "")
+        plays = snap.get("play_count", "")
+        all_item = next((item for item in snap.get("data", []) if item.get("version") == "ALL"), None)
+        if all_item:
+            op = float(all_item.get("version_op", 0.0))
+            max_op = float(all_item.get("version_max_op", 0.0))
+            if op > 0 and max_op > 0 and op >= last_op:
+                pct = (op / max_op * 100)
+                points.append({"timestamp": ts, "play_count": plays, "op": op, "max_op": max_op, "pct": pct})
+                last_op = op
+
+    if not points:
         for snap in history_snapshots:
             ts = snap.get("timestamp", "")
             plays = snap.get("play_count", "")
-            all_item = next((i for i in snap.get("data", []) if i.get("version") == "ALL"), None)
+            all_item = next((item for item in snap.get("data", []) if item.get("version") == "ALL"), None)
             if all_item:
                 op = float(all_item.get("version_op", 0.0))
                 max_op = float(all_item.get("version_max_op", 0.0))
                 pct = (op / max_op * 100) if max_op > 0 else 0.0
-                self.points.append({"timestamp": ts, "play_count": plays, "op": op, "max_op": max_op, "pct": pct})
-        self.draw_graph()
-
-    def draw_graph(self):
-        self.delete("all")
-        self.dot_coords = []
-        w, h = self.winfo_width(), self.winfo_height()
-        if w < 100 or h < 80:
-            return
-
-        if not self.points:
-            self.create_text(w // 2, h // 2, text="No historical snapshots recorded yet.", fill=DARK_THEME["text_secondary"], font=("Helvetica", 11))
-            return
-
-        pad_l, pad_r, pad_t, pad_b = 65, 35, 35, 45
-        plot_w, plot_h = w - pad_l - pad_r, h - pad_t - pad_b
-
-        ops = [p["op"] for p in self.points]
-        min_op, max_op = min(ops), max(ops)
-        margin = max(10.0, (max_op - min_op) * 0.20) if max_op != min_op else 50
-        y_min, y_max = max(0, min_op - margin), max_op + margin
-
-        for i in range(5):
-            y_val = y_min + (y_max - y_min) * (i / 4)
-            y_pos = pad_t + plot_h - (i / 4) * plot_h
-            self.create_line(pad_l, y_pos, w - pad_r, y_pos, fill=DARK_THEME["grid_line"], dash=(3, 3))
-            self.create_text(pad_l - 8, y_pos, text=f"{y_val:,.0f}", fill=DARK_THEME["text_secondary"], font=("Helvetica", 8), anchor="e")
-
-        n = len(self.points)
-        coords = []
-        for i, p in enumerate(self.points):
-            x = (pad_l + plot_w / 2) if n == 1 else pad_l + (i / (n - 1)) * plot_w
-            y_ratio = (p["op"] - y_min) / (y_max - y_min) if (y_max > y_min) else 0.5
-            y = pad_t + plot_h - (y_ratio * plot_h)
-            coords.append((x, y))
-            self.dot_coords.append((x, y, p, i))
-
-            label = f"#{p['play_count']}" if p.get("play_count") else p["timestamp"][5:16]
-            self.create_text(x, h - pad_b + 14, text=label, fill=DARK_THEME["text_secondary"], font=("Helvetica", 8), anchor="center")
-
-        if len(coords) >= 2:
-            poly = [coords[0][0], pad_t + plot_h]
-            for cx, cy in coords:
-                poly.extend([cx, cy])
-            poly.extend([coords[-1][0], pad_t + plot_h])
-            self.create_polygon(poly, fill="#0f2942", outline="")
-
-            flat = [v for pt in coords for v in pt]
-            self.create_line(flat, fill=DARK_THEME["accent"], width=3, smooth=False)
-
-        for x, y, p, _ in self.dot_coords:
-            self.create_oval(x - 5, y - 5, x + 5, y + 5, fill=DARK_THEME["accent"], outline="#ffffff", width=2)
-            self.create_text(x, y - 12, text=f"{p['op']:,.1f}", fill=DARK_THEME["text_primary"], font=("Helvetica", 8, "bold"))
-
-    def on_mouse_move(self, event):
-        mx, my = event.x, event.y
-        closest = next(((x, y, p, idx) for x, y, p, idx in self.dot_coords if ((mx - x)**2 + (my - y)**2)**0.5 < 22), None)
-        if not closest:
-            self.delete("tooltip")
-            return
-
-        x, y, p, idx = closest
-        self.delete("tooltip")
-        d_str = f"{'+' if (p['op'] - self.points[idx-1]['op']) > 0 else ''}{p['op'] - self.points[idx-1]['op']:,.2f}" if idx > 0 else "—"
-        tt_text = f"📅 {p['timestamp']}\n🎮 Plays: {p.get('play_count', '—')}\n⚡ Total OP: {p['op']:,.2f} / {p['max_op']:,.2f}\n📊 OP %: {p['pct']:.3f}%\n📈 Δ OP: {d_str}"
-
-        tx = min(self.winfo_width() - 150, max(10, x + 12))
-        ty = max(20, min(self.winfo_height() - 95, y - 65))
-        self.create_rectangle(tx, ty, tx + 144, ty + 88, fill="#0f172a", outline=DARK_THEME["accent"], width=1, tags="tooltip")
-        self.create_text(tx + 8, ty + 8, text=tt_text, fill="#f8fafc", font=("Helvetica", 8), anchor="nw", tags="tooltip")
-
-class MaimaiOpApp:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("maimai-op Dashboard")
-        self.root.geometry("640x720")
-        self.root.minsize(540, 480)
-        self.root.configure(bg=DARK_THEME["bg_main"])
-        set_windows_dark_titlebar(self.root)
-
-        self.version_order = {v: i for i, v in enumerate(load_json("data/versions.json", []))}
-        self.active_user_id = "kalta"
-        self.available_profiles = []
-        self.history_data = []
-        self.all_summary = None
-        self.rows_data = []
-        self.level_rows_data = []
-        self.header_bg_photo = None
-        self.sort_state = {"column": "version", "descending": False}
-        self.level_sort_state = {"column": "level", "descending": False}
-
-        self.apply_theme()
-        self.setup_ui()
-        self.refresh_profiles()
-
-    def get_user_dir(self, user_id):
-        return Path(f"users/{user_id}")
-
-    def apply_theme(self):
-        s = ttk.Style(self.root)
-        s.theme_use("clam")
-        s.configure("TFrame", background=DARK_THEME["bg_main"])
-        s.configure("TLabel", background=DARK_THEME["bg_main"], foreground=DARK_THEME["text_primary"])
-        s.configure("Header.TLabel", font=("Helvetica", 9, "bold"), foreground=DARK_THEME["text_primary"])
-        s.configure("Status.TLabel", font=("Helvetica", 9), foreground=DARK_THEME["accent"])
-        s.configure("TCombobox", fieldbackground=DARK_THEME["bg_input"], background=DARK_THEME["bg_card"], foreground=DARK_THEME["text_primary"])
-        s.configure("TButton", background=DARK_THEME["bg_card"], foreground=DARK_THEME["text_primary"], bordercolor="#3b4252", padding=(6, 3))
-        s.map("TButton", background=[("active", "#333842"), ("pressed", "#2d313b")])
-        s.configure("TNotebook", background=DARK_THEME["bg_main"], borderwidth=0)
-        s.configure("TNotebook.Tab", background=DARK_THEME["bg_card"], foreground=DARK_THEME["text_secondary"], padding=(10, 4), font=("Helvetica", 9, "bold"))
-        s.map("TNotebook.Tab", background=[("selected", DARK_THEME["bg_input"])], foreground=[("selected", DARK_THEME["accent"])])
-        s.configure("Treeview", background=DARK_THEME["tree_bg"], foreground=DARK_THEME["text_primary"], fieldbackground=DARK_THEME["tree_bg"], rowheight=24, font=("Helvetica", 9))
-        s.configure("Treeview.Heading", background=DARK_THEME["tree_head_bg"], foreground=DARK_THEME["text_primary"], relief="flat", font=("Helvetica", 9, "bold"))
-        s.configure("Vertical.TScrollbar", background=DARK_THEME["bg_card"], troughcolor=DARK_THEME["bg_main"], arrowcolor=DARK_THEME["text_secondary"])
-
-    def setup_ui(self):
-        bar = ttk.Frame(self.root, padding=(10, 8, 10, 4))
-        bar.pack(fill="x")
-        ttk.Label(bar, text="Profile:", style="Header.TLabel").pack(side="left", padx=(0, 4))
-
-        self.profile_combo = ttk.Combobox(bar, state="readonly", width=16, font=("Helvetica", 9))
-        self.profile_combo.pack(side="left", padx=(0, 6))
-        self.profile_combo.bind("<<ComboboxSelected>>", lambda e: self.on_profile_selected())
-
-        ttk.Button(bar, text="+ Add", command=self.add_new_profile).pack(side="left", padx=(0, 3))
-        ttk.Button(bar, text="🔑 Sync SEGA Direct", command=self.trigger_sega_sync).pack(side="left", padx=(0, 3))
-        ttk.Button(bar, text="⚡ Recalc", command=self.recalculate_active_user).pack(side="left")
-
-        self.status_lbl = ttk.Label(bar, text="", style="Status.TLabel")
-        self.status_lbl.pack(side="right")
-
-        # Header Canvas
-        self.header_canvas = tk.Canvas(self.root, height=86, bd=0, highlightthickness=0, bg=DARK_THEME["bg_main"])
-        self.header_canvas.pack(fill="x", padx=10, pady=(4, 2))
-        self.header_canvas.bind("<Configure>", lambda e: self.render_header_canvas())
-
-        # Notebook
-        self.notebook = ttk.Notebook(self.root)
-        self.notebook.pack(fill="both", expand=True, padx=10, pady=(2, 4))
-
-        # Table Tab (Versions)
-        tab_t = ttk.Frame(self.notebook)
-        self.notebook.add(tab_t, text="📋 Versions Table")
-        self.columns = [
-            ("version", "Version", 125, "w"),
-            ("plate", "Plate", 70, "center"),
-            ("version_op", "OP", 75, "e"),
-            ("delta_op", "Δ OP", 58, "e"),
-            ("version_max_op", "Max OP", 75, "e"),
-            ("op_percent", "OP %", 62, "e"),
-            ("delta_percent", "Δ %", 52, "e"),
-        ]
-        self.tree = ttk.Treeview(tab_t, columns=[c[0] for c in self.columns], show="headings", selectmode="browse")
-        sb = ttk.Scrollbar(tab_t, orient="vertical", command=self.tree.yview)
-        self.tree.configure(yscrollcommand=sb.set)
-        self.tree.pack(side="left", fill="both", expand=True)
-        sb.pack(side="right", fill="y")
-
-        for c_id, title, w, anc in self.columns:
-            self.tree.column(c_id, width=w, minwidth=40, anchor=anc)  # type: ignore
-            self.tree.heading(c_id, text=title, command=lambda c=c_id: self.on_header_click(c))
-
-        for p_lvl, col in PLATE_COLORS.items():
-            if p_lvl > 0:
-                hex_bg = f"#{col['bg'][0]:02x}{col['bg'][1]:02x}{col['bg'][2]:02x}"
-                hex_fg = f"#{col['fg'][0]:02x}{col['fg'][1]:02x}{col['fg'][2]:02x}"
-                self.tree.tag_configure(f"plate_{p_lvl}", background=hex_bg, foreground=hex_fg)
-        self.tree.tag_configure("plate_0", background=DARK_THEME["tree_bg"], foreground=DARK_THEME["text_secondary"])
-
-        # Levels Tab
-        tab_l = ttk.Frame(self.notebook)
-        self.notebook.add(tab_l, text="🎯 Levels Table")
-        self.level_columns = [
-            ("level", "Level", 85, "center"),
-            ("plate", "Plate", 70, "center"),
-            ("level_op", "OP", 75, "e"),
-            ("delta_op", "Δ OP", 58, "e"),
-            ("level_max_op", "Max OP", 75, "e"),
-            ("op_percent", "OP %", 62, "e"),
-            ("delta_percent", "Δ %", 52, "e"),
-            ("progress", "Progress", 85, "center"),
-        ]
-        self.level_tree = ttk.Treeview(tab_l, columns=[c[0] for c in self.level_columns], show="headings", selectmode="browse")
-        sb_l = ttk.Scrollbar(tab_l, orient="vertical", command=self.level_tree.yview)
-        self.level_tree.configure(yscrollcommand=sb_l.set)
-        self.level_tree.pack(side="left", fill="both", expand=True)
-        sb_l.pack(side="right", fill="y")
-
-        for c_id, title, w, anc in self.level_columns:
-            self.level_tree.column(c_id, width=w, minwidth=40, anchor=anc)  # type: ignore
-            self.level_tree.heading(c_id, text=title, command=lambda c=c_id: self.on_level_header_click(c))
-
-        for p_lvl, col in PLATE_COLORS.items():
-            if p_lvl > 0:
-                hex_bg = f"#{col['bg'][0]:02x}{col['bg'][1]:02x}{col['bg'][2]:02x}"
-                hex_fg = f"#{col['fg'][0]:02x}{col['fg'][1]:02x}{col['fg'][2]:02x}"
-                self.level_tree.tag_configure(f"plate_{p_lvl}", background=hex_bg, foreground=hex_fg)
-        self.level_tree.tag_configure("plate_0", background=DARK_THEME["tree_bg"], foreground=DARK_THEME["text_secondary"])
-
-        # Graph Tab
-        tab_g = ttk.Frame(self.notebook, padding=6)
-        self.notebook.add(tab_g, text="📈 OP Growth Graph")
-        stats_frame = tk.Frame(tab_g, bg=DARK_THEME["bg_card"], bd=1, relief="solid", padx=10, pady=6)
-        stats_frame.pack(fill="x", pady=(0, 6))
-        self.graph_stat_lbl = tk.Label(stats_frame, text="", font=("Helvetica", 9, "bold"), bg=DARK_THEME["bg_card"], fg=DARK_THEME["text_primary"])
-        self.graph_stat_lbl.pack(side="left")
-        self.history_graph = HistoryGraphCanvas(tab_g)
-        self.history_graph.pack(fill="both", expand=True)
-
-    def render_header_canvas(self):
-        w = max(200, self.header_canvas.winfo_width())
-        h = 86
-
-        all_pos = self.all_summary.get("possession", 0) if self.all_summary else 0
-        all_op = self.all_summary.get("version_op", 0.0) if self.all_summary else 0.0
-        all_max = self.all_summary.get("version_max_op", 0.0) if self.all_summary else 0.0
-        all_pct = self.all_summary.get("op_percent", 0.0) if self.all_summary else 0.0
-        d_op = self.all_summary.get("delta_op", 0.0) if self.all_summary else 0.0
-        d_pct = self.all_summary.get("delta_percent", 0.0) if self.all_summary else 0.0
-
-        gradient_img = generate_gradient_badge(all_pos, width=w, height=h, radius=8)
-        self.header_bg_photo = ImageTk.PhotoImage(gradient_img)
-        self.header_canvas.delete("all")
-        self.header_canvas.create_image(0, 0, image=self.header_bg_photo, anchor="nw")
-
-        username, play_text, last_sync = self.active_user_id, "—", "—"
-        if self.history_data:
-            latest = self.history_data[-1]
-            username = latest.get("username", self.active_user_id)
-            tot_p = str(latest.get("play_count", ""))
-            ver_p = str(latest.get("version_play_count", ""))
-            if tot_p.isdigit():
-                tot_str = f"{int(tot_p):,} plays"
-                if ver_p.isdigit() and int(ver_p) != int(tot_p):
-                    play_text = f"{tot_str}  ({int(ver_p):,} this version)"
-                else:
-                    play_text = tot_str
-            else:
-                play_text = "—"
-            last_sync = latest.get("timestamp", "—")
-
-        c_main = "#111827" if all_pos > 0 else "#f8fafc"
-        c_sub = "#374151" if all_pos > 0 else "#94a3b8"
-        c_acc = "#030712" if all_pos > 0 else "#e2e8f0"
-
-        self.header_canvas.create_text(14, 18, text=f"Player: {username}  (@{self.active_user_id})", font=("Helvetica", 12, "bold"), fill=c_main, anchor="w")
-        self.header_canvas.create_text(w - 14, 18, text=last_sync, font=("Helvetica", 8, "italic"), fill=c_sub, anchor="e")
-        self.header_canvas.create_text(14, 40, text=f"Plays: {play_text}", font=("Helvetica", 9, "bold"), fill=c_sub, anchor="w")
-
-        if self.all_summary:
-            base_txt = f"Overpower: {all_op:,.2f} / {all_max:,.2f} "
-            tag_id = self.header_canvas.create_text(14, 63, text=base_txt, font=("Helvetica", 9, "bold"), fill=c_acc, anchor="w")
-            bbox = self.header_canvas.bbox(tag_id)
-            pct_x = bbox[2] if bbox else 170
-            pct_rgb = get_op_tier_color(all_pct)
-            pct_hex = f"#{pct_rgb[0]:02x}{pct_rgb[1]:02x}{pct_rgb[2]:02x}"
-            self.header_canvas.create_text(pct_x, 63, text=f"({all_pct:.3f}%)", font=("Helvetica", 9, "bold"), fill=pct_hex, anchor="w")
-
-            if d_op != 0 or d_pct != 0:
-                d_color = "#15803d" if d_op > 0 else "#b91c1c"
-                self.header_canvas.create_text(w - 14, 63, text=f"(Δ {format_delta(d_op)} | {format_delta(d_pct, is_percent=True)})", font=("Helvetica", 9, "bold"), fill=d_color, anchor="e")
-        else:
-            self.header_canvas.create_text(14, 63, text="No calculated data yet. Click 'Sync SEGA Direct'.", font=("Helvetica", 8, "italic"), fill=c_sub, anchor="w")
-
-    def refresh_profiles(self, select_user=None):
-        users_dir = Path("users")
-        users_dir.mkdir(exist_ok=True)
-        profiles = []
-        for d in users_dir.iterdir():
-            if d.is_dir():
-                h = load_json(d / "history.json", [])
-                name = h[-1].get("username", d.name) if h else d.name
-                profiles.append({"id": d.name, "name": name, "label": f"{name} (@{d.name})" if name != d.name else f"@{d.name}"})
-
-        self.available_profiles = profiles or [{"id": "kalta", "name": "kalta", "label": "@kalta"}]
-        self.profile_combo["values"] = [p["label"] for p in self.available_profiles]
-        target = select_user or self.active_user_id
-        idx = next((i for i, p in enumerate(self.available_profiles) if p["id"] == target), 0)
-        self.profile_combo.current(idx)
-        self.on_profile_selected()
-
-    def on_profile_selected(self):
-        idx = self.profile_combo.current()
-        if 0 <= idx < len(self.available_profiles):
-            self.active_user_id = self.available_profiles[idx]["id"]
-            self.load_active_user_data()
-
-    def load_active_user_data(self):
-        self.history_data = load_json(self.get_user_dir(self.active_user_id) / "history.json", [])
-        self.all_summary, self.rows_data, self.level_rows_data = None, [], []
-
-        if self.history_data:
-            latest = self.history_data[-1]
-            for item in latest.get("data", []):
-                v_op, v_max, d_op = float(item.get("version_op", 0)), float(item.get("version_max_op", 0)), float(item.get("delta_op", 0))
-                pct = round((v_op / v_max * 100), 3 if item.get("version") == "ALL" else 2) if v_max > 0 else 0.0
-                row = {
-                    "version": item.get("version", ""), "possession": item.get("possession", 0),
-                    "version_op": v_op, "version_max_op": v_max, "op_percent": pct,
-                    "delta_op": d_op, "delta_percent": round((d_op / v_max * 100), 2) if v_max > 0 else 0.0
-                }
-                if item.get("version") == "ALL":
-                    self.all_summary = row
-                else:
-                    self.rows_data.append(row)
-
-            for item in latest.get("levels_data", []):
-                l_op, l_max, d_op = float(item.get("level_op", 0)), float(item.get("level_max_op", 0)), float(item.get("delta_op", 0))
-                pct = float(item.get("op_percent", 0))
-                played = item.get("played_charts", 0)
-                tot = item.get("total_charts", 0)
-                lvl = str(item.get("level", ""))
-                self.level_rows_data.append({
-                    "level": f"Lv {lvl}",
-                    "level_raw": lvl,
-                    "possession": item.get("possession", 0),
-                    "level_op": l_op,
-                    "level_max_op": l_max,
-                    "op_percent": pct,
-                    "delta_op": d_op,
-                    "delta_percent": round((d_op / l_max * 100), 2) if l_max > 0 else 0.0,
-                    "progress": f"{played}/{tot} ({played/tot*100:.0f}%)" if tot > 0 else "—"
-                })
-
-        self.render_header_canvas()
-        self.sort_rows(self.sort_state["column"], self.sort_state["descending"])
-        self.sort_level_rows(self.level_sort_state["column"], self.level_sort_state["descending"])
-        self.history_graph.set_data(self.history_data)
-
-        if self.history_data:
-            first, last = self.history_data[0].get("data", []), self.history_data[-1].get("data", [])
-            f_op = next((i["version_op"] for i in first if i.get("version") == "ALL"), 0.0)
-            l_op = next((i["version_op"] for i in last if i.get("version") == "ALL"), 0.0)
-            gain = l_op - f_op
-            self.graph_stat_lbl.config(text=f"📈 Timeline: {len(self.history_data)} Snapshots  |  Initial: {f_op:,.2f}  ➜  Current: {l_op:,.2f}  (Total: {'+' if gain > 0 else ''}{gain:,.2f} OP)")
-        else:
-            self.graph_stat_lbl.config(text="No historical snapshots logged.")
-
-    def on_header_click(self, col_id):
-        self.sort_state["descending"] = not self.sort_state["descending"] if self.sort_state["column"] == col_id else False
-        self.sort_state["column"] = col_id
-        self.sort_rows(col_id, self.sort_state["descending"])
-
-    def sort_rows(self, col_id, descending):
-        for c_id, title, _, _ in self.columns:
-            self.tree.heading(c_id, text=f"{title}{' ▼' if descending else ' ▲'}" if c_id == col_id else title)
-
-        def key_fn(item):
-            if col_id == "version": return self.version_order.get(item.get("version"), 999)
-            if col_id == "plate": return item.get("possession", 0)
-            if col_id in ("version_op", "delta_op", "version_max_op", "op_percent", "delta_percent"): return float(item.get(col_id, 0))
-            return str(item.get(col_id, "")).lower()
-
-        self.rows_data.sort(key=key_fn, reverse=descending)
-        for item in self.tree.get_children():
-            self.tree.delete(item)
-
-        for item in self.rows_data:
-            pos = item.get("possession", 0)
-            self.tree.insert("", "end", values=(
-                item.get("version", ""), PLATE_NAMES.get(pos, "—"), f"{item.get('version_op', 0):,.2f}",
-                format_delta(item.get("delta_op", 0)), f"{item.get('version_max_op', 0):,.2f}",
-                f"{item.get('op_percent', 0):.2f}%", format_delta(item.get("delta_percent", 0), is_percent=True)
-            ), tags=(f"plate_{pos}",))
-
-    def on_level_header_click(self, col_id):
-        self.level_sort_state["descending"] = not self.level_sort_state["descending"] if self.level_sort_state["column"] == col_id else False
-        self.level_sort_state["column"] = col_id
-        self.sort_level_rows(col_id, self.level_sort_state["descending"])
-
-    def sort_level_rows(self, col_id, descending):
-        for c_id, title, _, _ in self.level_columns:
-            self.level_tree.heading(c_id, text=f"{title}{' ▼' if descending else ' ▲'}" if c_id == col_id else title)
-
-        def key_fn(item):
-            if col_id == "level": return level_sort_key(item.get("level_raw", ""))
-            if col_id == "plate": return item.get("possession", 0)
-            if col_id in ("level_op", "delta_op", "level_max_op", "op_percent", "delta_percent"): return float(item.get(col_id, 0))
-            return str(item.get(col_id, "")).lower()
-
-        self.level_rows_data.sort(key=key_fn, reverse=descending)
-        for item in self.level_tree.get_children():
-            self.level_tree.delete(item)
-
-        for item in self.level_rows_data:
-            pos = item.get("possession", 0)
-            self.level_tree.insert("", "end", values=(
-                item.get("level", ""), PLATE_NAMES.get(pos, "—"), f"{item.get('level_op', 0):,.2f}",
-                format_delta(item.get("delta_op", 0)), f"{item.get('level_max_op', 0):,.2f}",
-                f"{item.get('op_percent', 0):.2f}%", format_delta(item.get("delta_percent", 0), is_percent=True),
-                item.get("progress", "—")
-            ), tags=(f"plate_{pos}",))
-
-    def add_new_profile(self):
-        new_h = simpledialog.askstring("Add Profile", "Enter profile handle/ID:\n(e.g., your username)", parent=self.root)
-        if not new_h or not new_h.strip():
-            return
-        handle = new_h.strip().lower()
-        d = self.get_user_dir(handle)
-        d.mkdir(parents=True, exist_ok=True)
-        (d / "records").mkdir(exist_ok=True)
-        self.refresh_profiles(select_user=handle)
-        if messagebox.askyesno("Sync Profile", f"Profile '@{handle}' created!\n\nSync scores from SEGA DX NET now?"):
-            self.trigger_sega_sync()
-
-    def recalculate_active_user(self):
-        self.status_lbl.config(text=f"Recalculating @{self.active_user_id}...")
-        self.root.update_idletasks()
-        try:
-            calculate_for_user(self.active_user_id)
-            self.load_active_user_data()
-            self.status_lbl.config(text="Recalculation complete!")
-        except Exception as e:
-            self.status_lbl.config(text="Recalculation failed")
-            messagebox.showerror("Error", f"Recalculation failed: {e}")
-
-    def trigger_sega_sync(self):
-        user_id = self.active_user_id
-        tok_file = self.get_user_dir(user_id) / "auth_token.txt"
-        saved = tok_file.read_text(encoding="utf-8").strip() if tok_file.exists() else ""
-        if saved:
-            self.start_sync_thread(user_id, saved)
-        else:
-            self.prompt_and_sync()
-
-    def prompt_and_sync(self):
-        user_id = self.active_user_id
-        tok_file = self.get_user_dir(user_id) / "auth_token.txt"
-        saved = tok_file.read_text(encoding="utf-8").strip() if tok_file.exists() else ""
-        val = simpledialog.askstring("SEGA Sync", f"Enter your CLAL or _t token:\n(Profile: @{user_id})", initialvalue=saved, parent=self.root)
-        if val:
-            self.start_sync_thread(user_id, val.strip())
-
-    def start_sync_thread(self, user_id, token_val):
-        self.status_lbl.config(text="Connecting to SEGA DX NET...")
-        self.root.update_idletasks()
-
-        def worker():
-            try:
-                res = sync_sega_direct(user_id, token_val)
-                self.root.after(0, lambda: self.on_sync_done(user_id, None, res))
-            except Exception as e:
-                self.root.after(0, lambda err=str(e): self.on_sync_done(user_id, err, None))
-
-        threading.Thread(target=worker, daemon=True).start()
-
-    def on_sync_done(self, user_id, err, res):
-        if err:
-            self.status_lbl.config(text="Sync failed")
-            if messagebox.askyesno("Sync Error", f"Failed to sync with SEGA DX NET:\n\n{err}\n\nEnter a new CLAL token?"):
-                self.prompt_and_sync()
-        else:
-            self.status_lbl.config(text="Sync complete!")
-            self.refresh_profiles(select_user=user_id)
-            messagebox.showinfo("Sync Success", f"Synced from SEGA DX NET!\n\nPlayer: {res['player_data']['username']}\nPlays: {int(res['player_data']['play_count']):,} plays\nUpdated {res['versions_count']} version records.")
+                points.append({"timestamp": ts, "play_count": plays, "op": op, "max_op": max_op, "pct": pct})
+    return points
+
+def generate_history_graph_image(history_snapshots: list) -> io.BytesIO:
+    """Renders an 820x420 Overpower % timeline growth graph PNG."""
+    width, height = 820, 420
+    img = Image.new("RGB", (width, height), DARK_BG)
+    draw = ImageDraw.Draw(img)
+
+    pad_left, pad_right, pad_top, pad_bottom = 75, 45, 50, 55
+    plot_w = width - pad_left - pad_right
+    plot_h = height - pad_top - pad_bottom
+
+    f_title = get_font(16, bold=True)
+    f_axis = get_font(10, bold=False)
+    f_node = get_font(10, bold=True)
+
+    draw.text((width // 2, 20), "Overpower % Growth Timeline", fill=TEXT_WHITE, font=f_title, anchor="ma")
+
+    points = extract_history_points(history_snapshots)
+
+    if not points:
+        draw.text((width // 2, height // 2), "No snapshot history recorded.", fill=TEXT_MUTED, font=f_title, anchor="mm")
+        out_buf = io.BytesIO()
+        img.save(out_buf, format="PNG")
+        out_buf.seek(0)
+        return out_buf
+
+    pcts = [p["pct"] for p in points]
+    min_pct, max_pct = min(pcts), max(pcts)
+    margin = max(0.5, (max_pct - min_pct) * 0.20) if max_pct != min_pct else 1.0
+    y_min = max(0.0, min_pct - margin)
+    y_max = min(100.0, max_pct + margin)
+
+    for i in range(5):
+        y_val = y_min + (y_max - y_min) * (i / 4)
+        y_pos = pad_top + plot_h - (i / 4) * plot_h
+        draw.line([(pad_left, y_pos), (width - pad_right, y_pos)], fill=GRID_LINE, width=1)
+        draw.text((pad_left - 10, y_pos), f"{y_val:.1f}%", fill=TEXT_MUTED, font=f_axis, anchor="rm")
+
+    n = len(points)
+    coords = []
+    for i, p in enumerate(points):
+        x = (pad_left + plot_w / 2) if n == 1 else pad_left + (i / (n - 1)) * plot_w
+        y_ratio = (p["pct"] - y_min) / (y_max - y_min) if (y_max > y_min) else 0.5
+        y = pad_top + plot_h - (y_ratio * plot_h)
+        coords.append((x, y, p))
+
+        short_ts = p["timestamp"][5:16] if len(p["timestamp"]) >= 16 else p["timestamp"]
+        label_text = f"#{p['play_count']}" if p.get("play_count") else short_ts
+        draw.text((x, height - pad_bottom + 16), label_text, fill=TEXT_MUTED, font=f_axis, anchor="mm")
+
+    if len(coords) >= 2:
+        poly = [(coords[0][0], pad_top + plot_h)] + [(cx, cy) for cx, cy, _ in coords] + [(coords[-1][0], pad_top + plot_h)]
+        draw.polygon(poly, fill=(15, 41, 66))
+        for j in range(len(coords) - 1):
+            draw.line([(coords[j][0], coords[j][1]), (coords[j + 1][0], coords[j + 1][1])], fill=ACCENT_CYAN, width=3)
+
+    for x, y, p in coords:
+        tier_col = get_op_tier_color(p["pct"])
+        draw.ellipse([x - 5, y - 5, x + 5, y + 5], fill=tier_col, outline=(255, 255, 255), width=2)
+        draw_text_outline(draw, (x, y - 14), f"{p['pct']:.2f}%", f_node, fill=tier_col, outline=(0, 0, 0), outline_width=1, anchor="mm")
+
+    out_buf = io.BytesIO()
+    img.save(out_buf, format="PNG")
+    out_buf.seek(0)
+    return out_buf
 
 def main():
-    root = tk.Tk()
-    app = MaimaiOpApp(root)
-    root.mainloop()
+    try:
+        from gui import main as gui_main
+        gui_main()
+    except (ImportError, ModuleNotFoundError) as e:
+        print(f"Desktop GUI unavailable: {e}")
 
 if __name__ == "__main__":
     main()

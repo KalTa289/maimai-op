@@ -41,7 +41,7 @@ def fetch_sgimera_constants() -> dict:
         m = re.search(rf'const\s+{var_name}\s*=\s*(\[\s*\[.*?\]\s*\]);', js_text, re.DOTALL)
         if not m:
             continue
-        raw_json = re.sub(r',\s*(\]|\])', r'\1', m.group(1).strip())
+        raw_json = re.sub(r',\s*\]', ']', m.group(1).strip())
         try:
             data = json.loads(raw_json)
         except Exception:
@@ -309,8 +309,10 @@ def update_song_database() -> list:
             existing_keys.add((t, c_type, diff))
 
     TEMPLATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(TEMPLATE_FILE, "w", encoding="utf-8") as f:
+    temp_file = TEMPLATE_FILE.with_suffix(".tmp")
+    with open(temp_file, "w", encoding="utf-8") as f:
         json.dump(master_charts, f, indent=2, ensure_ascii=False)
+    temp_file.replace(TEMPLATE_FILE)
 
     print(f"[song_manager] Master database saved: {len(master_charts)} charts across all 5 difficulties.")
     return master_charts
