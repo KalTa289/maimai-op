@@ -256,7 +256,7 @@ async def run_sync_with_progress(interaction: discord.Interaction, user_id: str,
     loop = asyncio.get_running_loop()
 
     initial_embed = make_progress_embed(steps, player_info["username"], "\n".join(status_note))
-    await interaction.followup.send(embed=initial_embed, ephemeral=True)
+    await interaction.followup.send(embed=initial_embed, ephemeral=False)
 
     last_edit_time = 0.0
 
@@ -423,11 +423,13 @@ async def version_cmd(
         m_path = user_dir / f"{version}_MASTER.json"
         rm_path = user_dir / f"{version}_RE_MASTER.json"
         if not m_path.exists() and not rm_path.exists():
-            return None, None
+            return [], []
         return load_json(m_path, []), load_json(rm_path, [])
 
     master_charts, remaster_charts = await asyncio.to_thread(load_version_data)
-    if master_charts is None and remaster_charts is None:
+    master_charts = master_charts or []
+    remaster_charts = remaster_charts or []
+    if not master_charts and not remaster_charts:
         await interaction.followup.send(
             f"❌ No records found for version **{version}** on {tgt_user.mention}'s profile. Did you `/sync`?"
         )

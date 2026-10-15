@@ -1,5 +1,4 @@
 import io
-from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 # ==========================================
@@ -85,8 +84,8 @@ def draw_text_outline(draw: ImageDraw.ImageDraw, pos, text: str, font, fill, out
                     draw.text((x + dx, y + dy), text, fill=outline, font=font, anchor=anchor)
     draw.text((x, y), text, fill=fill, font=font, anchor=anchor)
 
+#rainbow - plat - gold - silver - none
 def get_op_tier_color(pct: float) -> tuple[int, int, int]:
-    """Returns RGB text color based on OP percentage tier."""
     if pct >= 99.50:
         return (235, 140, 255)
     if pct >= 99.00:
@@ -172,7 +171,6 @@ def _draw_card_header(img: Image.Image, latest_snapshot: dict, width: int = 840)
 # ==========================================
 
 def generate_profile_card(latest_snapshot: dict) -> io.BytesIO:
-    """Renders profile card PNG with dynamic canvas height for version grid."""
     versions_data = [item for item in latest_snapshot.get("data", []) if item.get("version") != "ALL"]
     cols = 3
     rows = (len(versions_data) + cols - 1) // cols if versions_data else 9
@@ -237,7 +235,6 @@ def generate_profile_card(latest_snapshot: dict) -> io.BytesIO:
     return out_buf
 
 def generate_levels_card(latest_snapshot: dict) -> io.BytesIO:
-    """Renders an 840x560 profile card PNG with 23-level folders grid."""
     width, height = 840, 560
     img = Image.new("RGB", (width, height), DARK_BG)
     _draw_card_header(img, latest_snapshot, width)
@@ -300,7 +297,6 @@ def generate_levels_card(latest_snapshot: dict) -> io.BytesIO:
     return out_buf
 
 def extract_history_points(history_snapshots: list) -> list[dict]:
-    """Extracts valid OP % points from snapshots without artificial monotone increase restriction."""
     points = []
     for snap in history_snapshots:
         ts = snap.get("timestamp", "")
@@ -315,7 +311,6 @@ def extract_history_points(history_snapshots: list) -> list[dict]:
     return points
 
 def generate_history_graph_image(history_snapshots: list) -> io.BytesIO:
-    """Renders an 820x420 Overpower % timeline growth graph PNG."""
     width, height = 820, 420
     img = Image.new("RGB", (width, height), DARK_BG)
     draw = ImageDraw.Draw(img)

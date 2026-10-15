@@ -4,7 +4,6 @@ import json
 import csv
 import io
 import time
-import unicodedata
 from pathlib import Path
 import requests
 
@@ -17,7 +16,6 @@ TEMPLATE_FILE = Path("data/charts_template.json")
 DIFF_NAMES = ["BASIC", "ADVANCED", "EXPERT", "MASTER", "RE_MASTER"]
 
 def fetch_sgimera_constants() -> dict:
-    """Parses chart constants from sgimera RatingAnalyzer (CiRCLE PLUS)."""
     try:
         res = requests.get(SGIMERA_DATA_URL, timeout=15)
         if res.status_code != 200:
@@ -65,7 +63,6 @@ def fetch_sgimera_constants() -> dict:
     return results
 
 def fetch_sheet_constants() -> dict:
-    """Parses chart constants from Google Sheet for newly added CiRCLE PLUS songs."""
     try:
         res = requests.get(GOOGLE_SHEET_CSV_URL, timeout=15)
         if res.status_code != 200:
@@ -97,7 +94,6 @@ def fetch_sheet_constants() -> dict:
     return results
 
 def get_version_name_from_code(ver_code: int) -> str:
-    """Converts official SEGA version integer codes to maimai version names."""
     if ver_code < 11000: return "maimai"
     if ver_code < 12000: return "maimai PLUS"
     if ver_code < 13000: return "GreeN"
@@ -127,7 +123,6 @@ def get_version_name_from_code(ver_code: int) -> str:
     return "CiRCLE PLUS"
 
 def fetch_sega_song_versions() -> dict:
-    """Fetches song release versions from official International SEGA database (maimai.sega.com) and archives."""
     song_versions = {}
 
     # 1. Official International SEGA songs JSON
@@ -217,8 +212,8 @@ def disp_to_val(disp: str) -> str:
     except Exception:
         return "1.0"
 
+#holy hardcoding
 def disambiguate_link_version(s: dict) -> str:
-    """Accurately disambiguates 'Link' by Clean Tears (maimai PLUS) vs Circle of Friends (ORANGE)."""
     artist = s.get("artist", "")
     if "Clean Tears" in artist or s.get("lev_remas") or s.get("lev_exp") == "12+":
         return "maimai PLUS"
@@ -232,12 +227,6 @@ def disambiguate_link_version(s: dict) -> str:
         return "maimai PLUS"
 
 def update_song_database(force: bool = False) -> list:
-    """
-    1. Fetches all songs and their respective versions from maimai NET/SEGA database across all 5 difficulties.
-    2. Uses Sgimera and Google Sheets to verify and update chart constants.
-    Saves the verified master template to data/charts_template.json.
-    Caches results for 24 hours unless force=True.
-    """
     if not force and TEMPLATE_FILE.exists():
         age_seconds = time.time() - TEMPLATE_FILE.stat().st_mtime
         if age_seconds < 24 * 3600:

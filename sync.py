@@ -1,7 +1,5 @@
 import re
 import html
-import json
-import unicodedata
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 import requests
@@ -10,7 +8,12 @@ from calculate import calculate_for_user, load_json, atomic_write_json, normaliz
 import song_manager
 
 def is_sega_maintenance() -> bool:
-    return 4 <= datetime.now(timezone(timedelta(hours=9))).hour < 7
+    # Standard: 01:00 - 02:00 JST
+    # Wednesdays: 01:00 - 04:00 JST (weekday() == 2)
+    jst_now = datetime.now(timezone(timedelta(hours=9)))
+    maintenance_end_hour = 4 if jst_now.weekday() == 2 else 2
+    return 1 <= jst_now.hour < maintenance_end_hour
+
 
 BASE_URL = "https://maimaidx-eng.com/maimai-mobile"
 
@@ -76,7 +79,6 @@ def parse_player_data(html_text: str) -> dict:
     }
 
 def is_utage_title_or_block(title: str, block_html: str) -> bool:
-    """Returns True if the song card or title corresponds to an UTAGE (宴) chart."""
     if "music_utage.png" in block_html or "music_kind_icon_utage" in block_html:
         return True
     if 'name="genre" value="199"' in block_html or 'genre=199' in block_html:
@@ -87,8 +89,6 @@ def is_utage_title_or_block(title: str, block_html: str) -> bool:
     return False
 
 def parse_chart_type(block_html: str) -> str:
-    """Accurately identifies if a SEGA DX NET song card is DX or Standard."""
-    # 1. Primary kind icon (non-pointer)
     if re.search(r'<img[^>]*class="music_kind_icon\b(?![^"]*pointer)[^"]*"[^>]*src="[^"]*music_dx\.png"', block_html) or \
        re.search(r'<img[^>]*src="[^"]*music_dx\.png"[^>]*class="music_kind_icon\b(?![^"]*pointer)[^"]*"', block_html):
         return "DX"
@@ -96,14 +96,12 @@ def parse_chart_type(block_html: str) -> str:
        re.search(r'<img[^>]*src="[^"]*music_standard\.png"[^>]*class="music_kind_icon\b(?![^"]*pointer)[^"]*"', block_html):
         return "Standard"
 
-    # 2. Toggle pointer fallback
-    # If the toggle pointer is Standard, clicking it switches to Standard, so current card is DX!
     if "music_kind_icon_standard pointer" in block_html:
         return "DX"
     if "music_kind_icon_dx pointer" in block_html:
         return "Standard"
 
-    # 3. Simple presence fallback
+    # Simple presence fallback
     if "music_dx.png" in block_html:
         return "DX"
     return "Standard"
