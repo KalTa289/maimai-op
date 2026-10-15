@@ -2,10 +2,11 @@ import re
 import html
 import json
 import unicodedata
-import requests
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from calculate import calculate_for_user, load_json
+import requests
+
+from calculate import calculate_for_user, load_json, atomic_write_json, normalize_title, get_level_folder
 import song_manager
 
 def is_sega_maintenance() -> bool:
@@ -73,17 +74,6 @@ def parse_player_data(html_text: str) -> dict:
         "play_count": total_plays,
         "version_play_count": version_plays,
     }
-
-def normalize_title(raw_title: str) -> str:
-    if not raw_title:
-        return "\u200b"
-    t = html.unescape(raw_title).strip()
-    if not t:
-        return "\u200b"
-    t = unicodedata.normalize("NFKC", t)
-    t = t.replace("’", "'").replace("‘", "'").replace("”", '"').replace("“", '"')
-    t = t.replace("◇", "◆").replace("&#9670;", "◆").replace("&#9671;", "◆")
-    return re.sub(r'\s+', ' ', t).strip()
 
 def is_utage_title_or_block(title: str, block_html: str) -> bool:
     """Returns True if the song card or title corresponds to an UTAGE (宴) chart."""
@@ -167,6 +157,8 @@ def parse_song_cards(html_text: str) -> list[dict]:
             "achievement": achieve_val,
             "lamp": lamp
         })
+    return songs
+
 def sync_clal(user_id: str, clal: str | None = None, progress_callback = None) -> dict:
     if not re.match(r"^[a-zA-Z0-9_\-]+$", user_id):
         raise ValueError(f"Invalid user ID format: '{user_id}'")
@@ -207,6 +199,7 @@ def sync_clal(user_id: str, clal: str | None = None, progress_callback = None) -
 
     player_url = f"{BASE_URL}/playerData"
     res = session.get(player_url, allow_redirects=True, timeout=15)
+    res.raise_for_status()
 
     if "/error" in res.url.lower() or "/login" in res.url.lower() or "ERROR CODE" in res.text or "エラーコード" in res.text:
         raise ValueError("SEGA session expired or invalid token.\nPlease log in on lng-tgk-aime-gw.am-all.net and copy your CLAL token.")
@@ -232,10 +225,22 @@ def sync_clal(user_id: str, clal: str | None = None, progress_callback = None) -
                 params={"genre": 99, "diff": diff_idx},
                 timeout=25
             )
-            cards = parse_song_cards(diff_res.text)
-            diff_songs[diff_name] = cards
-            if progress_callback:
-                progress_callback("complete", diff_name, len(cards))
+            diff_res.raise_for_status()
+            html_text = diff_res.text
+            if "ERROR CODE" in html_text or "エラーコード" in html_text or "/error" in diff_res.url.lower() or "/login" in diff_res.url.lower():
+                raise ConnectionError(f"SEGA session expired or returned error for {diff_name}")
+
+            cards = parse_song_cards(html_text)
+            if not cards:
+                print(f"Warning: 0 cards scraped for difficulty {diff_name}.")
+                failed_diffs.add(diff_name)
+                diff_songs[diff_name] = []
+                if progress_callback:
+                    progress_callback("error", diff_name, 0)
+            else:
+                diff_songs[diff_name] = cards
+                if progress_callback:
+                    progress_callback("complete", diff_name, len(cards))
         except Exception as e:
             print(f"Warning: Failed to fetch {diff_name} records: {e}")
             diff_songs[diff_name] = []
@@ -262,6 +267,10 @@ def sync_clal(user_id: str, clal: str | None = None, progress_callback = None) -
             print(f"Skipping save for failed difficulty {diff_name} to preserve existing records.")
             continue
         scraped_list = diff_songs.get(diff_name, [])
+        if not scraped_list:
+            print(f"No scraped records for {diff_name}; skipping write to preserve existing files.")
+            continue
+
         cards_by_key = {}
         for card in scraped_list:
             k = (card["title"], card["type"])
@@ -271,13 +280,27 @@ def sync_clal(user_id: str, clal: str | None = None, progress_callback = None) -
         for c in charts:
             norm_t = normalize_title(c["title"])
             c_type = c.get("type", "Standard")
-            
+
             # Find scraped card match
             scraped = None
             candidates = cards_by_key.get((norm_t, c_type), []) or cards_by_key.get((c["title"], c_type), [])
             if candidates:
-                scraped = candidates[0]
-            elif scraped_list:
+                if len(candidates) == 1:
+                    scraped = candidates[0]
+                else:
+                    # Disambiguate duplicate titles (e.g., Link)
+                    if norm_t == "Link":
+                        target_disp = get_level_folder(c["level"])
+                        matched = next((cand for cand in candidates if cand.get("level_disp") == target_disp), None)
+                        if matched:
+                            scraped = matched
+                        elif ver_name == "maimai PLUS":
+                            scraped = candidates[0]
+                        else:
+                            scraped = candidates[1] if len(candidates) > 1 else candidates[0]
+                    else:
+                        scraped = candidates[0]
+            else:
                 # Song is absent on SEGA DX NET -> removed from game, skip
                 continue
 
@@ -306,8 +329,7 @@ def sync_clal(user_id: str, clal: str | None = None, progress_callback = None) -
                 })
 
         out_path = records_dir / f"{ver_name}_{diff_name}.json"
-        with open(out_path, "w", encoding="utf-8") as f:
-            json.dump(populated_list, f, indent=2, ensure_ascii=False)
+        atomic_write_json(out_path, populated_list)
 
     calculate_for_user(user_id, player_data=player_data)
 
@@ -318,12 +340,10 @@ def sync_clal(user_id: str, clal: str | None = None, progress_callback = None) -
         "versions_count": len(version_groups)
     }
 
-sync_sega_direct = sync_clal
-
 if __name__ == "__main__":
     import sys
     if "--update-constants" in sys.argv or "--update" in sys.argv:
-        song_manager.update_song_database()
+        song_manager.update_song_database(force=True)
     else:
         target = sys.argv[1] if len(sys.argv) > 1 else ""
         token = sys.argv[2] if len(sys.argv) > 2 else ""

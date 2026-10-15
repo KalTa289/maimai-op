@@ -17,10 +17,10 @@ PLATE_NAMES = {k: v["name"] for k, v in PLATE_COLORS.items()}
 PLATE_EMOJIS = {4: "🌈", 3: "👑", 2: "🥇", 1: "🥈", 0: "⬜"}
 
 GRADIENT_STOPS = {
-    4: [(255, 230, 255), (248, 180, 235), (195, 165, 252), (130, 215, 255)],
-    3: [(248, 210, 135), (255, 246, 195)],
-    2: [(230, 170, 15), (255, 242, 45)],
-    1: [(90, 190, 226), (160, 238, 255)],
+    4: [(251, 202, 235), (255, 207, 255), (251, 177, 250), (136, 132, 238), (122, 227, 218), (102, 234, 52)],
+    3: [(255, 245, 187), (255, 214, 121), (255, 210, 148), (255, 249, 191), (255, 240, 164)],
+    2: [(242, 222, 23), (219, 176, 19), (225, 164, 4), (249, 202, 37), (255, 254, 27), (255, 235, 9)],
+    1: [(114, 219, 242), (106, 166, 195), (120, 223, 249), (116, 203, 255), (108, 240, 246)],
     0: [(32, 35, 44), (42, 48, 56)],
 }
 
@@ -87,13 +87,13 @@ def draw_text_outline(draw: ImageDraw.ImageDraw, pos, text: str, font, fill, out
 
 def get_op_tier_color(pct: float) -> tuple[int, int, int]:
     """Returns RGB text color based on OP percentage tier."""
-    if pct >= 97.0:
+    if pct >= 99.50:
         return (235, 140, 255)
-    if pct >= 95.0:
+    if pct >= 99.00:
         return (255, 242, 170)
-    if pct >= 93.0:
+    if pct >= 97.50:
         return (250, 204, 21)
-    if pct >= 90.0:
+    if pct >= 97.00:
         return (56, 189, 248)
     return (160, 175, 195)
 
@@ -172,19 +172,25 @@ def _draw_card_header(img: Image.Image, latest_snapshot: dict, width: int = 840)
 # ==========================================
 
 def generate_profile_card(latest_snapshot: dict) -> io.BytesIO:
-    """Renders an 840x560 profile card PNG with 27-version grid."""
-    width, height = 840, 560
+    """Renders profile card PNG with dynamic canvas height for version grid."""
+    versions_data = [item for item in latest_snapshot.get("data", []) if item.get("version") != "ALL"]
+    cols = 3
+    rows = (len(versions_data) + cols - 1) // cols if versions_data else 9
+    card_margin_x = 16
+    start_y = 130
+    row_h = 42
+    row_gap = 5
+    bottom_pad = 20
+
+    width = 840
+    height = max(560, start_y + rows * (row_h + row_gap) + bottom_pad)
+
     img = Image.new("RGB", (width, height), DARK_BG)
     _draw_card_header(img, latest_snapshot, width)
     draw = ImageDraw.Draw(img)
 
-    versions_data = [item for item in latest_snapshot.get("data", []) if item.get("version") != "ALL"]
-    cols, rows = 3, 9
-    card_margin_x = 16
-    start_y = 130
     grid_w = width - (card_margin_x * 2)
     col_w = (grid_w - (10 * (cols - 1))) // cols
-    row_h = 42
 
     f_v_name = get_font(12, bold=True)
     f_v_op = get_font(11, bold=False)
@@ -195,7 +201,7 @@ def generate_profile_card(latest_snapshot: dict) -> io.BytesIO:
     for i, v_item in enumerate(versions_data):
         c, r = i % cols, i // cols
         vx = card_margin_x + c * (col_w + 10)
-        vy = start_y + r * (row_h + 5)
+        vy = start_y + r * (row_h + row_gap)
 
         pos = v_item.get("possession", 0)
         v_name = v_item.get("version", "")
@@ -294,9 +300,8 @@ def generate_levels_card(latest_snapshot: dict) -> io.BytesIO:
     return out_buf
 
 def extract_history_points(history_snapshots: list) -> list[dict]:
-    """Shared utility to extract valid increasing/fallback OP % points from snapshots."""
+    """Extracts valid OP % points from snapshots without artificial monotone increase restriction."""
     points = []
-    last_op = 0.0
     for snap in history_snapshots:
         ts = snap.get("timestamp", "")
         plays = snap.get("play_count", "")
@@ -304,20 +309,8 @@ def extract_history_points(history_snapshots: list) -> list[dict]:
         if all_item:
             op = float(all_item.get("version_op", 0.0))
             max_op = float(all_item.get("version_max_op", 0.0))
-            if op > 0 and max_op > 0 and op >= last_op:
-                pct = (op / max_op * 100)
-                points.append({"timestamp": ts, "play_count": plays, "op": op, "max_op": max_op, "pct": pct})
-                last_op = op
-
-    if not points:
-        for snap in history_snapshots:
-            ts = snap.get("timestamp", "")
-            plays = snap.get("play_count", "")
-            all_item = next((item for item in snap.get("data", []) if item.get("version") == "ALL"), None)
-            if all_item:
-                op = float(all_item.get("version_op", 0.0))
-                max_op = float(all_item.get("version_max_op", 0.0))
-                pct = (op / max_op * 100) if max_op > 0 else 0.0
+            pct = (op / max_op * 100) if max_op > 0 else 0.0
+            if max_op > 0:
                 points.append({"timestamp": ts, "play_count": plays, "op": op, "max_op": max_op, "pct": pct})
     return points
 

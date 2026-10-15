@@ -1,4 +1,4 @@
 {
-    "files.autoSave": "onFocusChange",
+    "files.autoSave": "off",
     "python.defaultInterpreterPath": "C:\\Users\\korme\\AppData\\Local\\Programs\\Python\\Python313\\python.exe"
 }

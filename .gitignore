@@ -1,12 +1,14 @@
 # Default
 __pycache__/
-.vscode/
-*.pyc
 .agents/
+.venv/
+.vscode/
+tests/
+*.pyc
 skills-lock.json
+overpower_possession.md
 
 # User & Private Auth Data
 users/
 records/
 .env
-auth_token.txt

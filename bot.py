@@ -8,13 +8,15 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+import song_manager
 from calculate import (
     load_json,
     get_level_folder,
     LEVEL_FOLDERS_ORDER,
     calculate_for_user,
     calc_op,
-    calc_possession_plate
+    calc_possession_plate,
+    calc_distributions
 )
 from sync import sync_clal, is_sega_maintenance
 from draw import (
@@ -22,7 +24,8 @@ from draw import (
     generate_levels_card,
     generate_history_graph_image,
     PLATE_NAMES,
-    PLATE_EMOJIS)
+    PLATE_EMOJIS
+)
 
 # ==========================================
 # 1. Configuration & Constants
@@ -38,19 +41,21 @@ TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 INTENTS = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=INTENTS)
 
+VERSIONS_CACHE = load_json("data/versions.json", [])
+
 PLATE_GOALS = [
     {"id": 1, "name": "Silver", "emoji": "🥈", "min_score": 97.0, "min_op": 0.0, "rank": "S"},
-    {"id": 2, "name": "Gold", "emoji": "🥇", "min_score": 98.0, "min_op": 93.0, "rank": "SS"},
-    {"id": 3, "name": "Platinum", "emoji": "👑", "min_score": 99.0, "min_op": 95.0, "rank": "SSS"},
-    {"id": 4, "name": "Rainbow", "emoji": "🌈", "min_score": 100.0, "min_op": 97.0, "rank": "SSS+"},
+    {"id": 2, "name": "Gold", "emoji": "🥇", "min_score": 98.0, "min_op": 97.50, "rank": "S+"},
+    {"id": 3, "name": "Platinum", "emoji": "👑", "min_score": 98.0, "min_op": 99.00, "rank": "S+"},
+    {"id": 4, "name": "Rainbow", "emoji": "🌈", "min_score": 99.0, "min_op": 99.50, "rank": "SS"},
 ]
 
 PLATE_CHOICES = [
     app_commands.Choice(name="Next Goal (Auto)", value="auto"),
     app_commands.Choice(name="🥈 Silver (All ≥97% S)", value="silver"),
-    app_commands.Choice(name="🥇 Gold (All ≥98% SS & OP ≥93%)", value="gold"),
-    app_commands.Choice(name="👑 Platinum (All ≥99% SSS & OP ≥95%)", value="platinum"),
-    app_commands.Choice(name="🌈 Rainbow (All ≥100% SSS+ & OP ≥97%)", value="rainbow"),
+    app_commands.Choice(name="🥇 Gold (All ≥98% S+ & OP ≥97.5%)", value="gold"),
+    app_commands.Choice(name="👑 Platinum (All ≥98% S+ & OP ≥99.0%)", value="platinum"),
+    app_commands.Choice(name="🌈 Rainbow (All ≥99% SS & OP ≥99.5%)", value="rainbow"),
 ]
 
 DIFF_SHORT_TAGS = {
@@ -104,7 +109,7 @@ def make_sync_embed(p_data: dict, history: list) -> discord.Embed:
 async def send_versions_profile(interaction: discord.Interaction, user: Optional[discord.User] = None):
     target = user or interaction.user
     user_id = get_discord_user_id(target)
-    history = get_user_history(user_id)
+    history = await asyncio.to_thread(get_user_history, user_id)
 
     if not history:
         msg = f"No records found for {target.mention}."
@@ -143,14 +148,13 @@ async def send_versions_profile(interaction: discord.Interaction, user: Optional
 async def send_levels_profile(interaction: discord.Interaction, user: Optional[discord.User] = None):
     target = user or interaction.user
     user_id = get_discord_user_id(target)
-    history = get_user_history(user_id)
+    history = await asyncio.to_thread(get_user_history, user_id)
 
     if not history or not history[-1].get("levels_data"):
-        # Check if user has record files to calculate from
         user_dir = Path(f"users/{user_id}/records")
         if user_dir.exists() and list(user_dir.glob("*.json")):
             await asyncio.to_thread(calculate_for_user, user_id)
-            history = get_user_history(user_id)
+            history = await asyncio.to_thread(get_user_history, user_id)
 
     if not history or not history[-1].get("levels_data"):
         msg = f"No level folder records found for {target.mention}."
@@ -159,11 +163,10 @@ async def send_levels_profile(interaction: discord.Interaction, user: Optional[d
         await interaction.followup.send(msg)
         return
 
-    # Auto-repair stale levels_data from previous single-version bug
     tot_charts = sum(l.get("total_charts", 0) for l in history[-1].get("levels_data", []))
     if tot_charts < 1000:
         await asyncio.to_thread(calculate_for_user, user_id)
-        history = get_user_history(user_id)
+        history = await asyncio.to_thread(get_user_history, user_id)
 
     latest = history[-1]
     all_row = next((item for item in latest.get("data", []) if item.get("version") == "ALL"), None)
@@ -192,10 +195,9 @@ async def send_levels_profile(interaction: discord.Interaction, user: Optional[d
     await interaction.followup.send(embed=embed, file=file)
 
 async def version_autocomplete(interaction: discord.Interaction, current: str):
-    versions = load_json("data/versions.json", [])
     return [
         app_commands.Choice(name=v, value=v)
-        for v in versions if current.lower() in v.lower()
+        for v in VERSIONS_CACHE if current.lower() in v.lower()
     ][:25]
 
 async def level_autocomplete(interaction: discord.Interaction, current: str):
@@ -289,7 +291,8 @@ async def run_sync_with_progress(interaction: discord.Interaction, user_id: str,
 
     try:
         res = await asyncio.to_thread(sync_clal, user_id, raw_token, on_progress)
-        final_embed = make_sync_embed(res["player_data"], get_user_history(user_id))
+        history = await asyncio.to_thread(get_user_history, user_id)
+        final_embed = make_sync_embed(res["player_data"], history)
         await interaction.edit_original_response(embed=final_embed)
     except Exception as e:
         err_embed = discord.Embed(
@@ -328,7 +331,24 @@ class ClalSyncModal(discord.ui.Modal, title="maimai DX NET Sync"):
         await run_sync_with_progress(interaction, user_id, raw_token)
 
 # ==========================================
-# 4. Slash Commands
+# 4. Global Error Handling
+# ==========================================
+
+@bot.tree.error
+async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
+    print(f"Command error in {interaction.command}: {error}")
+    embed = discord.Embed(
+        title="❌ Command Error",
+        description=f"An error occurred while executing the command: `{error}`",
+        color=0xef4444
+    )
+    if interaction.response.is_done():
+        await interaction.followup.send(embed=embed, ephemeral=True)
+    else:
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+# ==========================================
+# 5. Slash Commands
 # ==========================================
 
 @bot.tree.command(name="login", description="Enter or update your maimai DX NET CLAL token privately.")
@@ -386,26 +406,37 @@ async def version_cmd(
     user: Optional[discord.User] = None
 ):
     await interaction.response.defer(ephemeral=False)
+
+    # Path traversal protection
+    if version not in VERSIONS_CACHE:
+        await interaction.followup.send(
+            f"❌ Invalid version: **{version}**. Please select a valid maimai version from autocomplete.",
+            ephemeral=True
+        )
+        return
+
     tgt_user = user or interaction.user
     user_id = get_discord_user_id(tgt_user)
     user_dir = Path(f"users/{user_id}/records")
 
-    master_path = user_dir / f"{version}_MASTER.json"
-    remaster_path = user_dir / f"{version}_RE_MASTER.json"
+    def load_version_data():
+        m_path = user_dir / f"{version}_MASTER.json"
+        rm_path = user_dir / f"{version}_RE_MASTER.json"
+        if not m_path.exists() and not rm_path.exists():
+            return None, None
+        return load_json(m_path, []), load_json(rm_path, [])
 
-    if not master_path.exists() and not remaster_path.exists():
+    master_charts, remaster_charts = await asyncio.to_thread(load_version_data)
+    if master_charts is None and remaster_charts is None:
         await interaction.followup.send(
             f"❌ No records found for version **{version}** on {tgt_user.mention}'s profile. Did you `/sync`?"
         )
         return
 
-    master_charts = load_json(master_path, [])
-    remaster_charts = load_json(remaster_path, [])
-
     for c in master_charts:
         c["diff"] = "MAS"
     for c in remaster_charts:
-        c["diff"] = "Re:MAS"
+        c["diff"] = "Re:M"
 
     all_charts = master_charts + remaster_charts
     total_n = len(all_charts)
@@ -414,7 +445,7 @@ async def version_cmd(
         return
 
     played = [c for c in all_charts if c.get("played")]
-    history = get_user_history(user_id)
+    history = await asyncio.to_thread(get_user_history, user_id)
     v_row = None
     if history:
         v_row = next((item for item in history[-1].get("data", []) if item.get("version") == version), None)
@@ -433,12 +464,12 @@ async def version_cmd(
     else:
         target_tier = next((t for t in PLATE_GOALS if t["name"].lower() == target_key), PLATE_GOALS[0])
 
-    op_req = f" & OP ≥{target_tier['min_op']:.0f}%" if target_tier['min_op'] > 0 else ""
+    op_req = f" & OP ≥{target_tier['min_op']:.2f}%" if target_tier['min_op'] > 0 else ""
     embed = discord.Embed(
         title=f"📀 {version} — Plate Analysis for {tgt_user.display_name}",
         description=(
             f"Current: **{plate_emoji} {plate_name}** | Overpower: **{v_op:,.2f} / {v_max:,.2f} ({v_pct:.2f}%)**\n"
-            f"Target Goal: **{target_tier['emoji']} {target_tier['name']}** (Requires all charts ≥{target_tier['min_score']}% {target_tier['rank']}{op_req})"
+            f"Target Goal: **{target_tier['emoji']} {target_tier['name']}** (Requires all charts ≥{target_tier['min_score']:.0f}% {target_tier['rank']}{op_req})"
         ),
         color=0x38bdf8
     )
@@ -449,7 +480,7 @@ async def version_cmd(
         op_met = v_pct >= t["min_op"]
         achieved = (count == total_n and op_met)
         status = "✅ Achieved" if achieved else f"**{count}/{total_n}**"
-        op_info = f" [OP: {v_pct:.1f}% / {t['min_op']:.0f}% {'✓' if op_met else '✗'}]" if t['min_op'] > 0 else ""
+        op_info = f" [OP: {v_pct:.2f}% / {t['min_op']:.2f}% {'✓' if op_met else '✗'}]" if t['min_op'] > 0 else ""
         checklist_lines.append(f"{t['emoji']} **{t['name']}**: {status}{op_info}")
 
     embed.add_field(
@@ -457,6 +488,17 @@ async def version_cmd(
         value="\n".join(checklist_lines),
         inline=False
     )
+
+    # Rank and lamp distribution summary
+    if v_row and "rank_counts" in v_row and "lamp_counts" in v_row:
+        ranks, lamps = v_row["rank_counts"], v_row["lamp_counts"]
+    else:
+        ranks, lamps = calc_distributions(all_charts)
+    dist_text = (
+        f"**S:** {ranks.get('S', 0)} | **S+:** {ranks.get('S+', 0)} | **SS:** {ranks.get('SS', 0)} | **SS+:** {ranks.get('SS+', 0)} | **SSS:** {ranks.get('SSS', 0)} | **SSS+:** {ranks.get('SSS+', 0)}\n"
+        f"**FC:** {lamps.get('FC', 0)} | **FC+:** {lamps.get('FC+', 0)} | **AP:** {lamps.get('AP', 0)} | **AP+:** {lamps.get('AP+', 0)}"
+    )
+    embed.add_field(name="📊 Score & Lamp Milestones", value=dist_text, inline=False)
 
     missing = [c for c in all_charts if not c.get("played") or get_chart_percent(c) < target_tier["min_score"]]
     missing.sort(key=lambda c: get_chart_percent(c))
@@ -477,7 +519,7 @@ async def version_cmd(
     else:
         embed.add_field(
             name=f"🎉 {target_tier['emoji']} {target_tier['name']} Goal Met!",
-            value=f"All **{total_n}** charts in **{version}** have reached at least **{target_tier['min_score']}% ({target_tier['rank']})**!",
+            value=f"All **{total_n}** charts in **{version}** have reached at least **{target_tier['min_score']:.0f}% ({target_tier['rank']})**!",
             inline=False
         )
 
@@ -502,12 +544,17 @@ async def level_cmd(
     user_id = get_discord_user_id(tgt_user)
     user_dir = Path(f"users/{user_id}/records")
     clean_lvl = level.replace("Lv", "").replace("LV", "").strip()
+    if clean_lvl not in LEVEL_FOLDERS_ORDER:
+        await interaction.followup.send(
+            f"❌ Invalid level folder: **{level}**. Valid folders: {', '.join(LEVEL_FOLDERS_ORDER)}",
+            ephemeral=True
+        )
+        return
 
     def load_level_charts():
-        versions = load_json("data/versions.json", [])
         diff_names = ["BASIC", "ADVANCED", "EXPERT", "MASTER", "RE_MASTER"]
         charts = []
-        for v in versions:
+        for v in VERSIONS_CACHE:
             for d in diff_names:
                 c_list = load_json(user_dir / f"{v}_{d}.json", [])
                 for c in c_list:
@@ -530,7 +577,7 @@ async def level_cmd(
     total_n = len(level_charts)
     played = [c for c in level_charts if c.get("played")]
 
-    # Compute accurate live Overpower directly from level_charts
+    # Compute live Overpower directly from level_charts
     l_op = sum(calc_op(c.get("played", False), c["level"], c.get("lamp"), c.get("rating", "0"), c.get("percent", "0%")) for c in level_charts)
     l_max = sum((float(c["level"]) + 3.0) * 5.0 for c in level_charts)
     l_pct = (l_op / l_max * 100) if l_max > 0 else 0.0
@@ -548,12 +595,12 @@ async def level_cmd(
     else:
         target_tier = next((t for t in PLATE_GOALS if t["name"].lower() == target_key), PLATE_GOALS[0])
 
-    op_req = f" & OP ≥{target_tier['min_op']:.0f}%" if target_tier['min_op'] > 0 else ""
+    op_req = f" & OP ≥{target_tier['min_op']:.2f}%" if target_tier['min_op'] > 0 else ""
     embed = discord.Embed(
         title=f"🎯 Lv {clean_lvl} — Level Plate Analysis for {tgt_user.display_name}",
         description=(
             f"Current: **{plate_emoji} {plate_name}** | Overpower: **{l_op:,.2f} / {l_max:,.2f} ({l_pct:.2f}%)**\n"
-            f"Target Goal: **{target_tier['emoji']} {target_tier['name']}** (Requires all charts ≥{target_tier['min_score']}% {target_tier['rank']}{op_req})"
+            f"Target Goal: **{target_tier['emoji']} {target_tier['name']}** (Requires all charts ≥{target_tier['min_score']:.0f}% {target_tier['rank']}{op_req})"
         ),
         color=0x38bdf8
     )
@@ -564,7 +611,7 @@ async def level_cmd(
         op_met = l_pct >= t["min_op"]
         achieved = (count == total_n and op_met)
         status = "✅ Achieved" if achieved else f"**{count}/{total_n}**"
-        op_info = f" [OP: {l_pct:.1f}% / {t['min_op']:.0f}% {'✓' if op_met else '✗'}]" if t['min_op'] > 0 else ""
+        op_info = f" [OP: {l_pct:.2f}% / {t['min_op']:.2f}% {'✓' if op_met else '✗'}]" if t['min_op'] > 0 else ""
         checklist_lines.append(f"{t['emoji']} **{t['name']}**: {status}{op_info}")
 
     embed.add_field(
@@ -572,6 +619,14 @@ async def level_cmd(
         value="\n".join(checklist_lines),
         inline=False
     )
+
+    # Rank and lamp distribution summary
+    ranks, lamps = calc_distributions(level_charts)
+    dist_text = (
+        f"**S:** {ranks.get('S', 0)} | **S+:** {ranks.get('S+', 0)} | **SS:** {ranks.get('SS', 0)} | **SS+:** {ranks.get('SS+', 0)} | **SSS:** {ranks.get('SSS', 0)} | **SSS+:** {ranks.get('SSS+', 0)}\n"
+        f"**FC:** {lamps.get('FC', 0)} | **FC+:** {lamps.get('FC+', 0)} | **AP:** {lamps.get('AP', 0)} | **AP+:** {lamps.get('AP+', 0)}"
+    )
+    embed.add_field(name="📊 Score & Lamp Milestones", value=dist_text, inline=False)
 
     missing = [c for c in level_charts if not c.get("played") or get_chart_percent(c) < target_tier["min_score"]]
     missing.sort(key=lambda c: get_chart_percent(c))
@@ -593,7 +648,7 @@ async def level_cmd(
     else:
         embed.add_field(
             name=f"🎉 {target_tier['emoji']} {target_tier['name']} Goal Met!",
-            value=f"All **{total_n}** charts in **Lv {clean_lvl}** have reached at least **{target_tier['min_score']}% ({target_tier['rank']})**!",
+            value=f"All **{total_n}** charts in **Lv {clean_lvl}** have reached at least **{target_tier['min_score']:.0f}% ({target_tier['rank']})**!",
             inline=False
         )
 
@@ -605,7 +660,7 @@ async def graph_cmd(interaction: discord.Interaction, user: Optional[discord.Use
     await interaction.response.defer(ephemeral=False)
     target = user or interaction.user
     user_id = get_discord_user_id(target)
-    history = get_user_history(user_id)
+    history = await asyncio.to_thread(get_user_history, user_id)
 
     if not history:
         msg = f"No snapshot history recorded for {target.mention}. Use `/sync` to start logging your growth!"
@@ -663,8 +718,6 @@ async def help_cmd(interaction: discord.Interaction):
 # 6. Bot Lifecycle & Main Execution
 # ==========================================
 
-import song_manager
-
 @bot.event
 async def on_ready():
     if bot.user:
@@ -675,7 +728,7 @@ async def on_ready():
     except Exception as e:
         print(f"Failed to sync slash commands: {e}")
 
-    # Automatically fetch songs & verify chart constants on bot launch in the background
+    # Check/update song catalog in the background on startup
     asyncio.create_task(asyncio.to_thread(song_manager.update_song_database))
 
 def main():
@@ -687,4 +740,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

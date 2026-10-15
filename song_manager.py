@@ -3,26 +3,18 @@ import html
 import json
 import csv
 import io
+import time
 import unicodedata
-import requests
 from pathlib import Path
+import requests
+
+from calculate import normalize_title, atomic_write_json, load_json
 
 SGIMERA_DATA_URL = "https://sgimera.github.io/mai_RatingAnalyzer/scripts_maimai/maidx_in_lv_data_circleplus.js"
 GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1JXFhqpow60lXYzETOXaqIRVIaIpWWxCsGCcE0piLLDw/export?format=csv&gid=859834814"
 TEMPLATE_FILE = Path("data/charts_template.json")
 
 DIFF_NAMES = ["BASIC", "ADVANCED", "EXPERT", "MASTER", "RE_MASTER"]
-
-def normalize_title(raw_title: str) -> str:
-    if not raw_title:
-        return "\u200b"
-    t = html.unescape(raw_title).strip()
-    if not t:
-        return "\u200b"
-    t = unicodedata.normalize("NFKC", t)
-    t = t.replace("’", "'").replace("‘", "'").replace("”", '"').replace("“", '"')
-    t = t.replace("◇", "◆").replace("&#9670;", "◆").replace("&#9671;", "◆")
-    return re.sub(r'\s+', ' ', t).strip()
 
 def fetch_sgimera_constants() -> dict:
     """Parses chart constants from sgimera RatingAnalyzer (CiRCLE PLUS)."""
@@ -90,9 +82,9 @@ def fetch_sheet_constants() -> dict:
         for col_start in range(0, len(row), 6):
             if col_start + 4 < len(row):
                 t = row[col_start].strip()
-                c_type_raw = row[col_start+1].strip()
-                diff_raw = row[col_start+2].strip()
-                constant_str = row[col_start+4].strip()
+                c_type_raw = row[col_start + 1].strip()
+                diff_raw = row[col_start + 2].strip()
+                constant_str = row[col_start + 4].strip()
                 if t and constant_str and not t.startswith("＜") and "ちほー" not in t and "追加曲" not in t:
                     try:
                         c_val = float(constant_str)
@@ -137,7 +129,7 @@ def get_version_name_from_code(ver_code: int) -> str:
 def fetch_sega_song_versions() -> dict:
     """Fetches song release versions from official International SEGA database (maimai.sega.com) and archives."""
     song_versions = {}
-    
+
     # 1. Official International SEGA songs JSON
     intl_url = "https://maimai.sega.com/assets/data/maimai_songs.json"
     try:
@@ -145,11 +137,15 @@ def fetch_sega_song_versions() -> dict:
         if res.status_code == 200:
             for s in res.json():
                 t = normalize_title(s.get("title", ""))
+                if not t:
+                    continue
+                if t == "Link":
+                    # Disambiguated separately by artist/levels
+                    continue
                 v_raw = s.get("version", 0)
                 try:
                     v_code = int(v_raw)
-                    if t:
-                        song_versions[t] = get_version_name_from_code(v_code)
+                    song_versions[t] = get_version_name_from_code(v_code)
                 except ValueError:
                     pass
     except Exception as e:
@@ -162,10 +158,12 @@ def fetch_sega_song_versions() -> dict:
             if res.status_code == 200:
                 for s in res.json():
                     t = normalize_title(s.get("title", ""))
+                    if not t or t == "Link":
+                        continue
                     v_raw = s.get("version", 0)
                     try:
                         v_code = int(v_raw)
-                        if t and t not in song_versions:
+                        if t not in song_versions:
                             song_versions[t] = get_version_name_from_code(v_code)
                     except ValueError:
                         pass
@@ -197,7 +195,7 @@ def fetch_sega_song_versions() -> dict:
                 for raw in titles:
                     clean = re.sub(r'^[★▲◆■●]\s*', '', raw).replace('[dx]', '').strip()
                     norm = normalize_title(clean)
-                    if norm and norm not in seen_songs:
+                    if norm and norm != "Link" and norm not in seen_songs:
                         song_versions[norm] = ver_name
                         seen_songs.add(norm)
         except Exception:
@@ -219,12 +217,35 @@ def disp_to_val(disp: str) -> str:
     except Exception:
         return "1.0"
 
-def update_song_database() -> list:
+def disambiguate_link_version(s: dict) -> str:
+    """Accurately disambiguates 'Link' by Clean Tears (maimai PLUS) vs Circle of Friends (ORANGE)."""
+    artist = s.get("artist", "")
+    if "Clean Tears" in artist or s.get("lev_remas") or s.get("lev_exp") == "12+":
+        return "maimai PLUS"
+    if "Circle of friends" in artist or s.get("lev_exp") == "10+":
+        return "ORANGE"
+    v_raw = s.get("version", 0)
+    try:
+        v_code = int(v_raw)
+        return get_version_name_from_code(v_code)
+    except ValueError:
+        return "maimai PLUS"
+
+def update_song_database(force: bool = False) -> list:
     """
     1. Fetches all songs and their respective versions from maimai NET/SEGA database across all 5 difficulties.
     2. Uses Sgimera and Google Sheets to verify and update chart constants.
     Saves the verified master template to data/charts_template.json.
+    Caches results for 24 hours unless force=True.
     """
+    if not force and TEMPLATE_FILE.exists():
+        age_seconds = time.time() - TEMPLATE_FILE.stat().st_mtime
+        if age_seconds < 24 * 3600:
+            print(f"[song_manager] charts_template.json was updated within 24h ({age_seconds / 3600:.1f}h ago). Loading from cache.")
+            cached = load_json(TEMPLATE_FILE, [])
+            if cached:
+                return cached
+
     print("[song_manager] Updating songs, versions, and chart constants across all difficulties...")
 
     # 1. Fetch official song versions & songs list from SEGA
@@ -265,7 +286,11 @@ def update_song_database() -> list:
             default_ver = get_version_name_from_code(v_code)
         except ValueError:
             default_ver = "CiRCLE PLUS"
-        ver = song_versions.get(t, default_ver)
+
+        if t == "Link":
+            ver = disambiguate_link_version(s)
+        else:
+            ver = song_versions.get(t, default_ver)
 
         # Standard charts (BASIC, ADVANCED, EXPERT, MASTER, RE_MASTER)
         for diff, k in [("BASIC", "lev_bas"), ("ADVANCED", "lev_adv"), ("EXPERT", "lev_exp"), ("MASTER", "lev_mas"), ("RE_MASTER", "lev_remas")]:
@@ -298,7 +323,10 @@ def update_song_database() -> list:
     # Add any remaining verified charts from constants_map
     for (t, c_type, diff), lvl in constants_map.items():
         if (t, c_type, diff) not in existing_keys:
-            ver = song_versions.get(t, "CiRCLE PLUS")
+            if t == "Link":
+                ver = "maimai PLUS" if diff in ("RE_MASTER",) or lvl in ("12.7", "7.7", "13.0") else "ORANGE"
+            else:
+                ver = song_versions.get(t, "CiRCLE PLUS")
             master_charts.append({
                 "title": t,
                 "level": lvl,
@@ -308,14 +336,9 @@ def update_song_database() -> list:
             })
             existing_keys.add((t, c_type, diff))
 
-    TEMPLATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    temp_file = TEMPLATE_FILE.with_suffix(".tmp")
-    with open(temp_file, "w", encoding="utf-8") as f:
-        json.dump(master_charts, f, indent=2, ensure_ascii=False)
-    temp_file.replace(TEMPLATE_FILE)
-
+    atomic_write_json(TEMPLATE_FILE, master_charts)
     print(f"[song_manager] Master database saved: {len(master_charts)} charts across all 5 difficulties.")
     return master_charts
 
 if __name__ == "__main__":
-    update_song_database()
+    update_song_database(force=True)

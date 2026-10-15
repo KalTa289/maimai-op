@@ -1,6 +1,4 @@
-import io
 import re
-import sys
 import ctypes
 import threading
 from pathlib import Path
@@ -8,24 +6,14 @@ import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
 from PIL import ImageTk
 
-from calculate import calculate_for_user, load_json
+from calculate import calculate_for_user, load_json, level_sort_key
 from sync import sync_clal
 from draw import (
     PLATE_COLORS,
     PLATE_NAMES,
-    PLATE_EMOJIS,
-    DARK_BG,
-    TEXT_WHITE,
-    TEXT_MUTED,
-    ACCENT_CYAN,
-    GRID_LINE,
-    LEVELS_ORDER,
     DARK_THEME,
-    get_font,
-    draw_text_outline,
     get_op_tier_color,
     generate_gradient_badge,
-    _draw_card_header,
     extract_history_points,
 )
 
@@ -44,10 +32,6 @@ def format_delta(val, is_percent=False):
     sign = "+" if val > 0 else ""
     suffix = "%" if is_percent else ""
     return f"{sign}{val:.2f}{suffix}"
-
-def _level_sort_val(s: str) -> float:
-    clean = s.replace("Lv", "").replace("LV", "").strip()
-    return float(clean[:-1]) + 0.5 if clean.endswith("+") else (float(clean) if clean else 0.0)
 
 class HistoryGraphCanvas(tk.Canvas):
     def __init__(self, parent, **kwargs):
@@ -124,8 +108,8 @@ class HistoryGraphCanvas(tk.Canvas):
 
         x, y, p, idx = closest
         self.delete("tooltip")
-        d_val = (p['op'] - self.points[idx-1]['op']) if idx > 0 else 0.0
-        d_pct = (p['pct'] - self.points[idx-1]['pct']) if idx > 0 else 0.0
+        d_val = (p['op'] - self.points[idx - 1]['op']) if idx > 0 else 0.0
+        d_pct = (p['pct'] - self.points[idx - 1]['pct']) if idx > 0 else 0.0
         d_str = f"+{d_val:,.2f} (+{d_pct:.3f}%)" if d_val > 0.0001 else "—"
         tt_text = f"📅 {p['timestamp']}\n🎮 Plays: {p.get('play_count', '—')}\n📊 OP %: {p['pct']:.3f}%\n⚡ OP: {p['op']:,.2f} / {p['max_op']:,.2f}\n📈 Δ: {d_str}"
 
@@ -220,7 +204,7 @@ class MaimaiOpApp:
         sb.pack(side="right", fill="y")
 
         for c_id, title, w, anc in self.columns:
-            self.tree.column(c_id, width=w, minwidth=40, anchor=anc)  # type: ignore
+            self.tree.column(c_id, width=w, minwidth=40, anchor=anc)
             self.tree.heading(c_id, text=title, command=lambda c=c_id: self.on_header_click(c))
 
         for p_lvl, col in PLATE_COLORS.items():
@@ -250,7 +234,7 @@ class MaimaiOpApp:
         sb_l.pack(side="right", fill="y")
 
         for c_id, title, w, anc in self.level_columns:
-            self.level_tree.column(c_id, width=w, minwidth=40, anchor=anc)  # type: ignore
+            self.level_tree.column(c_id, width=w, minwidth=40, anchor=anc)
             self.level_tree.heading(c_id, text=title, command=lambda c=c_id: self.on_level_header_click(c))
 
         for p_lvl, col in PLATE_COLORS.items():
@@ -436,7 +420,7 @@ class MaimaiOpApp:
             self.level_tree.heading(c_id, text=f"{title}{' ▼' if descending else ' ▲'}" if c_id == col_id else title)
 
         def key_fn(item):
-            if col_id == "level": return _level_sort_val(item.get("level_raw", ""))
+            if col_id == "level": return level_sort_key(item.get("level_raw", ""))
             if col_id == "plate": return item.get("possession", 0)
             if col_id in ("level_op", "delta_op", "level_max_op", "op_percent", "delta_percent"): return float(item.get(col_id, 0))
             return str(item.get(col_id, "")).lower()
@@ -470,15 +454,26 @@ class MaimaiOpApp:
             self.trigger_sega_sync()
 
     def recalculate_active_user(self):
-        self.status_lbl.config(text=f"Recalculating @{self.active_user_id}...")
+        user_id = self.active_user_id
+        self.status_lbl.config(text=f"Recalculating @{user_id}...")
         self.root.update_idletasks()
-        try:
-            calculate_for_user(self.active_user_id)
+
+        def worker():
+            try:
+                calculate_for_user(user_id)
+                self.root.after(0, lambda: self._on_recalculate_done(None))
+            except Exception as e:
+                self.root.after(0, lambda err=str(e): self._on_recalculate_done(err))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _on_recalculate_done(self, err):
+        if err:
+            self.status_lbl.config(text="Recalculation failed")
+            messagebox.showerror("Error", f"Recalculation failed: {err}")
+        else:
             self.load_active_user_data()
             self.status_lbl.config(text="Recalculation complete!")
-        except Exception as e:
-            self.status_lbl.config(text="Recalculation failed")
-            messagebox.showerror("Error", f"Recalculation failed: {e}")
 
     def trigger_sega_sync(self):
         user_id = self.active_user_id
