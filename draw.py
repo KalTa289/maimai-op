@@ -1,6 +1,8 @@
 import io
 from PIL import Image, ImageDraw, ImageFont
 
+from calculate import LEVEL_FOLDERS_ORDER
+
 # ==========================================
 # 1. Colors, Palettes & Constants
 # ==========================================
@@ -29,12 +31,7 @@ TEXT_MUTED = (148, 163, 184)
 ACCENT_CYAN = (56, 189, 248)
 GRID_LINE = (42, 45, 52)
 
-LEVELS_ORDER = [
-    "1", "2", "3", "4", "5", "6",
-    "7", "7+", "8", "8+", "9", "9+",
-    "10", "10+", "11", "11+", "12", "12+",
-    "13", "13+", "14", "14+", "15"
-]
+LEVELS_ORDER = LEVEL_FOLDERS_ORDER
 
 DARK_THEME = {
     "bg_main": "#18191c",
@@ -374,12 +371,4 @@ def generate_history_graph_image(history_snapshots: list) -> io.BytesIO:
     out_buf.seek(0)
     return out_buf
 
-def main():
-    try:
-        from gui import main as gui_main
-        gui_main()
-    except (ImportError, ModuleNotFoundError) as e:
-        print(f"Desktop GUI unavailable: {e}")
 
-if __name__ == "__main__":
-    main()

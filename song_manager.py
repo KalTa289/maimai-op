@@ -7,13 +7,11 @@ import time
 from pathlib import Path
 import requests
 
-from calculate import normalize_title, atomic_write_json, load_json
+from calculate import normalize_title, atomic_write_json, load_json, DIFF_NAMES
 
 SGIMERA_DATA_URL = "https://sgimera.github.io/mai_RatingAnalyzer/scripts_maimai/maidx_in_lv_data_circleplus.js"
 GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1JXFhqpow60lXYzETOXaqIRVIaIpWWxCsGCcE0piLLDw/export?format=csv&gid=859834814"
 TEMPLATE_FILE = Path("data/charts_template.json")
-
-DIFF_NAMES = ["BASIC", "ADVANCED", "EXPERT", "MASTER", "RE_MASTER"]
 
 def fetch_sgimera_constants() -> dict:
     try:
@@ -204,7 +202,7 @@ def disp_to_val(disp: str) -> str:
     d = disp.replace("Lv", "").replace("LV", "").strip()
     if d.endswith("+"):
         try:
-            return f"{float(d[:-1]) + 0.7:.1f}"
+            return f"{float(d[:-1]) + 0.6:.1f}"
         except Exception:
             return "1.0"
     try:

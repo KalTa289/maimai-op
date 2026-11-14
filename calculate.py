@@ -37,11 +37,21 @@ def normalize_title(raw_title: str) -> str:
     t = t.replace("◇", "◆").replace("&#9670;", "◆").replace("&#9671;", "◆")
     return re.sub(r'\s+', ' ', t).strip()
 
+def extract_percent(val: Any) -> float:
+    """Safely parses achievement percentage into float from strings, numbers, or None."""
+    if val is None:
+        return 0.0
+    if isinstance(val, (int, float)):
+        return float(val)
+    try:
+        return float(str(val).strip().rstrip("%").strip())
+    except (ValueError, TypeError):
+        return 0.0
+
 def calc_op(
     played: bool,
     level_str: str | float,
     lamp: str | None = None,
-    rating_str: str | float | None = None,
     percent_str: str | float = "0%"
 ) -> float:
     """
@@ -63,13 +73,7 @@ def calc_op(
     except (ValueError, TypeError):
         return 0.0
 
-    if isinstance(percent_str, (int, float)):
-        score = float(percent_str)
-    else:
-        try:
-            score = float(str(percent_str).rstrip("%"))
-        except (ValueError, TypeError):
-            return 0.0
+    score = extract_percent(percent_str)
 
     if score < 97.0:
         return 0.0
@@ -122,10 +126,7 @@ def calc_distributions(charts: list[dict]) -> tuple[dict, dict]:
     for c in charts:
         if not c.get("played"):
             continue
-        try:
-            score = float(str(c.get("percent", "0%")).rstrip("%"))
-        except (ValueError, TypeError):
-            score = 0.0
+        score = extract_percent(c.get("percent"))
 
         if score >= 100.5:
             ranks["SSS+"] += 1
@@ -156,13 +157,26 @@ def load_json(path: Path | str, default: Any = None) -> Any:
         return default
 
 def atomic_write_json(filepath: Path | str, data: Any, indent: int = 2) -> None:
-    """Safely writes JSON data to disk via an atomic temporary file replacement."""
+    """Safely writes JSON data to disk via an atomic temporary file replacement with retry."""
     path = Path(filepath)
     path.parent.mkdir(parents=True, exist_ok=True)
     temp_path = path.with_suffix(f".tmp_{os.getpid()}_{int(time.time() * 1000)}")
     with open(temp_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=indent, ensure_ascii=False)
-    temp_path.replace(path)
+    for attempt in range(5):
+        try:
+            temp_path.replace(path)
+            return
+        except PermissionError:
+            if attempt < 4:
+                time.sleep(0.05 * (attempt + 1))
+            else:
+                try:
+                    if temp_path.exists():
+                        temp_path.unlink()
+                except OSError:
+                    pass
+                raise
 
 def get_level_folder(level_ds: float | str) -> str:
     val = round(float(level_ds), 1)
@@ -172,7 +186,7 @@ def get_level_folder(level_ds: float | str) -> str:
         return str(base)
     if base >= 15:
         return "15"
-    return f"{base}+" if frac >= 0.7 else str(base)
+    return f"{base}+" if frac >= 0.6 else str(base)
 
 def level_sort_key(folder_name: str) -> float:
     try:
@@ -211,6 +225,14 @@ def calculate_for_user(user_id: str, player_data: dict | None = None) -> list:
             ver_charts_by_diff[d] = c_list
             if c_list:
                 has_any_charts = True
+                for chart in c_list:
+                    lvl_str = chart.get("level")
+                    if lvl_str:
+                        folder = get_level_folder(lvl_str)
+                        chart_copy = dict(chart)
+                        chart_copy["diff"] = d
+                        chart_copy["version"] = version
+                        level_buckets.setdefault(folder, []).append(chart_copy)
 
         if not has_any_charts:
             continue
@@ -232,7 +254,6 @@ def calculate_for_user(user_id: str, player_data: dict | None = None) -> list:
                 c.get("played", False),
                 c["level"],
                 c.get("lamp"),
-                c.get("rating", "0"),
                 c.get("percent", "0%")
             ) for c in song_charts), default=0.0)
 
@@ -252,7 +273,7 @@ def calculate_for_user(user_id: str, player_data: dict | None = None) -> list:
 
         all_played = all(c.get("played", False) for c in combined_mas_remas) if combined_mas_remas else False
         min_score = (
-            min((float(c.get("percent", "0%").rstrip("%")) for c in combined_mas_remas), default=0.0)
+            min((extract_percent(c.get("percent")) for c in combined_mas_remas), default=0.0)
             if all_played
             else 0.0
         )
@@ -275,7 +296,7 @@ def calculate_for_user(user_id: str, player_data: dict | None = None) -> list:
     all_pct = (all_op / all_max_op * 100) if all_max_op > 0 else 0.0
     all_mas_played = all(c.get("played", False) for c in all_mas_remas_charts) if all_mas_remas_charts else False
     all_min_score = (
-        min((float(c.get("percent", "0%").rstrip("%")) for c in all_mas_remas_charts), default=0.0)
+        min((extract_percent(c.get("percent")) for c in all_mas_remas_charts), default=0.0)
         if all_mas_played
         else 0.0
     )
@@ -301,19 +322,6 @@ def calculate_for_user(user_id: str, player_data: dict | None = None) -> list:
     }
     versions_data.append(all_entry)
 
-    # Level Folders
-    for version in versions:
-        for d_name in DIFF_NAMES:
-            c_list = load_json(records_dir / f"{version}_{d_name}.json", [])
-            for chart in c_list:
-                lvl_str = chart.get("level")
-                if lvl_str:
-                    folder = get_level_folder(lvl_str)
-                    chart_copy = dict(chart)
-                    chart_copy["diff"] = d_name
-                    chart_copy["version"] = version
-                    level_buckets.setdefault(folder, []).append(chart_copy)
-
     levels_data = []
     for folder in LEVEL_FOLDERS_ORDER:
         charts = level_buckets.get(folder, [])
@@ -324,14 +332,13 @@ def calculate_for_user(user_id: str, player_data: dict | None = None) -> list:
             c.get("played", False),
             c["level"],
             c.get("lamp"),
-            c.get("rating", "0"),
             c.get("percent", "0%")
         ) for c in charts)
         l_max_op = sum((float(c["level"]) + 3.0) * 5.0 for c in charts)
         pct = (l_op / l_max_op * 100) if l_max_op > 0 else 0.0
 
         all_p = all(c.get("played", False) for c in charts)
-        min_s = min((float(c.get("percent", "0%").rstrip("%")) for c in charts), default=0.0) if all_p else 0.0
+        min_s = min((extract_percent(c.get("percent")) for c in charts), default=0.0) if all_p else 0.0
         played_cnt = sum(1 for c in charts if c.get("played"))
 
         pos = calc_possession_plate(min_s, pct)
@@ -390,11 +397,15 @@ def calculate_for_user(user_id: str, player_data: dict | None = None) -> list:
     prev_play_count = history[-1].get("play_count") if history else None
     if not history:
         has_changed = True
-    elif play_count and prev_play_count:
-        has_changed = (str(play_count) != str(prev_play_count))
+    elif player_data is not None:
+        if play_count is not None and play_count != "" and prev_play_count is not None and prev_play_count != "":
+            has_changed = (str(play_count) != str(prev_play_count))
+        else:
+            prev_all_op = next((item.get("version_op") for item in history[-1].get("data", []) if item.get("version") == "ALL"), None)
+            has_changed = (round(all_op, 2) != prev_all_op)
     else:
-        prev_all_op = next((item.get("version_op") for item in history[-1].get("data", []) if item.get("version") == "ALL"), None)
-        has_changed = (round(all_op, 2) != prev_all_op)
+        # Offline recalculation without new player data: update current snapshot, do not append
+        has_changed = False
 
     if has_changed:
         history.append({

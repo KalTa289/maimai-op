@@ -488,7 +488,7 @@ class MaimaiOpApp:
         user_id = self.active_user_id
         tok_file = self.get_user_dir(user_id) / "auth_token.txt"
         saved = tok_file.read_text(encoding="utf-8").strip() if tok_file.exists() else ""
-        val = simpledialog.askstring("SEGA Sync", f"Enter your CLAL or _t token:\n(Profile: @{user_id})", initialvalue=saved, parent=self.root)
+        val = simpledialog.askstring("SEGA Sync", f"Enter your 64-character CLAL token:\n(Profile: @{user_id})", initialvalue=saved, parent=self.root)
         if val:
             self.start_sync_thread(user_id, val.strip())
 

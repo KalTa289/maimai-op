@@ -4,8 +4,22 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 import requests
 
-from calculate import calculate_for_user, load_json, atomic_write_json, normalize_title, get_level_folder
+from calculate import (
+    calculate_for_user,
+    load_json,
+    atomic_write_json,
+    normalize_title,
+    get_level_folder,
+    DIFF_NAMES,
+    LEVEL_FOLDERS_ORDER,
+    extract_percent
+)
 import song_manager
+
+SEGA_MAINTENANCE_MSG = (
+    "SEGA maimai DX NET undergoes daily server maintenance between 01:00 and 02:00 JST "
+    "(until 04:00 JST on Wednesdays). Sync is unavailable during this time. Please try again after maintenance completes."
+)
 
 def is_sega_maintenance() -> bool:
     # Standard: 01:00 - 02:00 JST
@@ -14,6 +28,18 @@ def is_sega_maintenance() -> bool:
     maintenance_end_hour = 4 if jst_now.weekday() == 2 else 2
     return 1 <= jst_now.hour < maintenance_end_hour
 
+RE_NAME_BLOCK = re.compile(r'<div class="name_block[^>]*>(.*?)</div>', re.DOTALL)
+RE_RATING_BLOCK = re.compile(r'<div class="rating_block[^>]*>(.*?)</div>', re.DOTALL)
+RE_V_PLAY = re.compile(r'(?:current version|今バージョン)[^\d]*([\d,]+)', re.I)
+RE_TOT_PLAY = re.compile(r'(?:total play count|累計プレイ回数|総プレイ回数|total play)[^\d]*([\d,]+)', re.I)
+RE_MUSIC_NAME = re.compile(r'<div class="music_name_block[^>]*>(.*?)</div>', re.DOTALL)
+RE_MUSIC_LV = re.compile(r'<div class="music_lv_block[^>]*>(.*?)</div>', re.DOTALL)
+RE_MUSIC_SCORE = re.compile(r'<div class="music_score_block[^>]*>(.*?)</div>', re.DOTALL)
+RE_CLEAN_TAGS = re.compile(r'<[^>]+>')
+RE_NON_DIGITS = re.compile(r'\D')
+RE_UTAGE_PREFIX = re.compile(r"^\[(?:宴|協|蔵|蛸|星|は|狂|光|即|覚|撫|跳|耐|疑|傾|戯|直|逆|撃|双|謎|極|超|真|弾|変)\]")
+RE_DX_ICON = re.compile(r'<img[^>]*class="music_kind_icon\b(?![^"]*pointer)[^"]*"[^>]*src="[^"]*music_dx\.png"|<img[^>]*src="[^"]*music_dx\.png"[^>]*class="music_kind_icon\b(?![^"]*pointer)[^"]*"')
+RE_STD_ICON = re.compile(r'<img[^>]*class="music_kind_icon\b(?![^"]*pointer)[^"]*"[^>]*src="[^"]*music_standard\.png"|<img[^>]*src="[^"]*music_standard\.png"[^>]*class="music_kind_icon\b(?![^"]*pointer)[^"]*"')
 
 BASE_URL = "https://maimaidx-eng.com/maimai-mobile"
 
@@ -36,8 +62,6 @@ RATING_COEFFS = [
     (10.0, 1.6), (0.0, 0.0)
 ]
 
-DIFF_NAMES = ["BASIC", "ADVANCED", "EXPERT", "MASTER", "RE_MASTER"]
-
 def calc_single_rating(level: float, achieve: float) -> int:
     cap_achieve = min(100.5, achieve)
     coeff = 0.0
@@ -47,25 +71,22 @@ def calc_single_rating(level: float, achieve: float) -> int:
             break
     return int(level * coeff * cap_achieve / 100.0)
 
-def parse_cookie_input(raw_input: str) -> dict:
-    raw = raw_input.strip()
-    if not raw:
-        return {}
-    if "=" not in raw and len(raw) >= 16:
-        return {"clal": raw}
-    cookies = {k.strip(): v.strip().strip('"') for part in raw.split(";") if "=" in part for k, v in [part.strip().split("=", 1)]}
-    return cookies if cookies else ({"clal": raw} if raw else {})
+def validate_clal_token(token: str) -> str:
+    cleaned = token.strip()
+    if len(cleaned) != 64 or not re.match(r"^[0-9a-fA-F]{64}$", cleaned):
+        raise ValueError("Invalid CLAL token format: must be strictly 64 hexadecimal characters.")
+    return cleaned
 
 def parse_player_data(html_text: str) -> dict:
-    name_m = re.search(r'<div class="name_block[^>]*>(.*?)</div>', html_text, re.DOTALL)
+    name_m = RE_NAME_BLOCK.search(html_text)
     raw_name = name_m.group(1).strip() if name_m else "Unknown"
-    clean_name = html.unescape(re.sub(r'<[^>]+>', '', raw_name)).strip() or "Unknown"
+    clean_name = html.unescape(RE_CLEAN_TAGS.sub('', raw_name)).strip() or "Unknown"
 
-    rating_m = re.search(r'<div class="rating_block[^>]*>(.*?)</div>', html_text, re.DOTALL)
-    rating_val = int(re.sub(r'\D', '', rating_m.group(1))) if rating_m else 0
+    rating_m = RE_RATING_BLOCK.search(html_text)
+    rating_val = int(RE_NON_DIGITS.sub('', rating_m.group(1))) if rating_m else 0
 
-    v_play_m = re.search(r'(?:current version|今バージョン)[^\d]*([\d,]+)', html_text, re.I)
-    tot_play_m = re.search(r'(?:total play count|累計プレイ回数|総プレイ回数|total play)[^\d]*([\d,]+)', html_text, re.I)
+    v_play_m = RE_V_PLAY.search(html_text)
+    tot_play_m = RE_TOT_PLAY.search(html_text)
 
     version_plays = int(v_play_m.group(1).replace(",", "")) if v_play_m else 0
     total_plays = int(tot_play_m.group(1).replace(",", "")) if tot_play_m else 0
@@ -78,22 +99,20 @@ def parse_player_data(html_text: str) -> dict:
         "version_play_count": version_plays,
     }
 
-def is_utage_title_or_block(title: str, block_html: str) -> bool:
+def is_utage_title_or_block(title: str, block_html: str = "") -> bool:
     if "music_utage.png" in block_html or "music_kind_icon_utage" in block_html:
         return True
     if 'name="genre" value="199"' in block_html or 'genre=199' in block_html:
         return True
     # Match UTAGE title prefix tags: [宴], [協], [蔵], [蛸], [星], [は], [狂], [光], [即], [覚], [撫], etc.
-    if re.match(r"^\[(?:宴|協|蔵|蛸|星|は|狂|光|即|覚|撫|跳|耐|疑|傾|戯|直|逆|撃|双|謎|極|超|真|弾|変)\]", title):
+    if RE_UTAGE_PREFIX.match(title):
         return True
     return False
 
 def parse_chart_type(block_html: str) -> str:
-    if re.search(r'<img[^>]*class="music_kind_icon\b(?![^"]*pointer)[^"]*"[^>]*src="[^"]*music_dx\.png"', block_html) or \
-       re.search(r'<img[^>]*src="[^"]*music_dx\.png"[^>]*class="music_kind_icon\b(?![^"]*pointer)[^"]*"', block_html):
+    if RE_DX_ICON.search(block_html):
         return "DX"
-    if re.search(r'<img[^>]*class="music_kind_icon\b(?![^"]*pointer)[^"]*"[^>]*src="[^"]*music_standard\.png"', block_html) or \
-       re.search(r'<img[^>]*src="[^"]*music_standard\.png"[^>]*class="music_kind_icon\b(?![^"]*pointer)[^"]*"', block_html):
+    if RE_STD_ICON.search(block_html):
         return "Standard"
 
     if "music_kind_icon_standard pointer" in block_html:
@@ -112,7 +131,7 @@ def parse_song_cards(html_text: str) -> list[dict]:
         if 'name="idx"' not in b and "music_name_block" not in b:
             continue
 
-        title_m = re.search(r'<div class="music_name_block[^>]*>(.*?)</div>', b, re.DOTALL)
+        title_m = RE_MUSIC_NAME.search(b)
         if not title_m:
             continue
         raw_title = title_m.group(1).strip()
@@ -124,10 +143,10 @@ def parse_song_cards(html_text: str) -> list[dict]:
         chart_type = parse_chart_type(b)
 
         # Extract display level if available (e.g. '12', '12+', '13')
-        lv_m = re.search(r'<div class="music_lv_block[^>]*>(.*?)</div>', b, re.DOTALL)
+        lv_m = RE_MUSIC_LV.search(b)
         level_disp = lv_m.group(1).strip() if lv_m else ""
 
-        score_matches = re.findall(r'<div class="music_score_block[^>]*>(.*?)</div>', b, re.DOTALL)
+        score_matches = RE_MUSIC_SCORE.findall(b)
         played = False
         percent = "0%"
         achieve_val = 0.0
@@ -137,10 +156,7 @@ def parse_song_cards(html_text: str) -> list[dict]:
             if "%" in s_clean:
                 played = True
                 percent = s_clean
-                try:
-                    achieve_val = float(s_clean.rstrip("%"))
-                except ValueError:
-                    pass
+                achieve_val = extract_percent(s_clean)
                 break
 
         lamp = next((l for icon, l in [("app", "AP+"), ("ap", "AP"), ("fcp", "FC+"), ("fc", "FC")] if f"icon_{icon}.png" in b), None)
@@ -162,7 +178,7 @@ def sync_clal(user_id: str, clal: str | None = None, progress_callback = None) -
         raise ValueError(f"Invalid user ID format: '{user_id}'")
 
     if is_sega_maintenance():
-        raise ConnectionError("SEGA maimai DX NET is currently undergoing daily server maintenance (04:00 - 07:00 JST). Sync is unavailable during this time. Please try again after 07:00 JST.")
+        raise ConnectionError(SEGA_MAINTENANCE_MSG)
 
     user_dir = Path(f"users/{user_id}")
     user_dir.mkdir(parents=True, exist_ok=True)
@@ -178,22 +194,18 @@ def sync_clal(user_id: str, clal: str | None = None, progress_callback = None) -
         else:
             raise ValueError(f"No auth token provided and no saved token found for '{user_id}'.")
 
-    cookie_dict = parse_cookie_input(clal)
-    if not cookie_dict:
-        raise ValueError("Invalid cookie format. Provide a 64-char CLAL token or full cookie string.")
+    clal = validate_clal_token(clal)
 
     session = requests.Session()
     session.headers.update(HEADERS)
 
-    for k, v in cookie_dict.items():
-        session.cookies.set(k, v, domain="maimaidx-eng.com")
-        session.cookies.set(k, v, domain=".am-all.net")
+    session.cookies.set("clal", clal, domain="maimaidx-eng.com")
+    session.cookies.set("clal", clal, domain=".am-all.net")
 
-    if "clal" in cookie_dict or "CLAL" in cookie_dict:
-        try:
-            session.get(AUTH_GATEWAY_URL, allow_redirects=True, timeout=12)
-        except Exception as e:
-            raise ConnectionError(f"Aime gateway authentication failed: {e}")
+    try:
+        session.get(AUTH_GATEWAY_URL, allow_redirects=True, timeout=12)
+    except Exception as e:
+        raise ConnectionError(f"Aime gateway authentication failed: {e}")
 
     player_url = f"{BASE_URL}/playerData"
     res = session.get(player_url, allow_redirects=True, timeout=15)

@@ -16,9 +16,10 @@ from calculate import (
     calculate_for_user,
     calc_op,
     calc_possession_plate,
-    calc_distributions
+    calc_distributions,
+    extract_percent
 )
-from sync import sync_clal, is_sega_maintenance
+from sync import sync_clal, is_sega_maintenance, SEGA_MAINTENANCE_MSG
 from draw import (
     generate_profile_card,
     generate_levels_card,
@@ -70,6 +71,13 @@ DIFF_SHORT_TAGS = {
 # 2. Helper Functions
 # ==========================================
 
+_user_sync_locks: dict[str, asyncio.Lock] = {}
+
+def get_user_sync_lock(user_id: str) -> asyncio.Lock:
+    if user_id not in _user_sync_locks:
+        _user_sync_locks[user_id] = asyncio.Lock()
+    return _user_sync_locks[user_id]
+
 def get_discord_user_id(user: discord.User | discord.Member) -> str:
     return f"discord_{user.id}"
 
@@ -80,8 +88,7 @@ def latest_name(history: list, default: str) -> str:
     return history[-1].get("username", default) if history else default
 
 def get_chart_percent(chart: dict) -> float:
-    p = chart.get("percent", "0%")
-    return float(p.rstrip("%")) if "%" in p else 0.0
+    return extract_percent(chart.get("percent"))
 
 def make_sync_embed(p_data: dict, history: list) -> discord.Embed:
     latest = history[-1] if history else {}
@@ -202,7 +209,7 @@ async def version_autocomplete(interaction: discord.Interaction, current: str):
 
 async def level_autocomplete(interaction: discord.Interaction, current: str):
     return [
-        app_commands.Choice(name=f"Lv {f}", value=f)
+        app_commands.Choice(name=f"{f}", value=f)
         for f in LEVEL_FOLDERS_ORDER if current.lower() in f.lower() or current.lower() in f"lv {f}".lower()
     ][:25]
 
@@ -256,7 +263,10 @@ async def run_sync_with_progress(interaction: discord.Interaction, user_id: str,
     loop = asyncio.get_running_loop()
 
     initial_embed = make_progress_embed(steps, player_info["username"], "\n".join(status_note))
-    await interaction.followup.send(embed=initial_embed, ephemeral=False)
+    try:
+        await interaction.edit_original_response(embed=initial_embed)
+    except discord.NotFound:
+        await interaction.followup.send(embed=initial_embed)
 
     last_edit_time = 0.0
 
@@ -289,19 +299,39 @@ async def run_sync_with_progress(interaction: discord.Interaction, user_id: str,
             status_note.append("⚡ Calculating Overpower & Version Plate Ratings...")
             asyncio.run_coroutine_threadsafe(update_msg(force=True), loop)
 
-    try:
-        res = await asyncio.to_thread(sync_clal, user_id, raw_token, on_progress)
-        history = await asyncio.to_thread(get_user_history, user_id)
-        final_embed = make_sync_embed(res["player_data"], history)
-        await interaction.edit_original_response(embed=final_embed)
-    except Exception as e:
-        err_embed = discord.Embed(
-            title="❌ Sync Failed with SEGA DX NET",
-            description=f"`{e}`\n\n*If your CLAL token has expired, click below to enter a new one:*",
-            color=0xef4444
+    lock = get_user_sync_lock(user_id)
+    if lock.locked():
+        busy_embed = discord.Embed(
+            title="⏳ Sync Already in Progress",
+            description="A synchronization is already running for your account. Please wait for it to complete.",
+            color=0xf59e0b
         )
-        view = TokenExpiredView()
-        await interaction.edit_original_response(embed=err_embed, view=view)
+        try:
+            await interaction.edit_original_response(embed=busy_embed)
+        except discord.NotFound:
+            await interaction.followup.send(embed=busy_embed)
+        return
+
+    async with lock:
+        try:
+            res = await asyncio.to_thread(sync_clal, user_id, raw_token, on_progress)
+            history = await asyncio.to_thread(get_user_history, user_id)
+            final_embed = make_sync_embed(res["player_data"], history)
+            try:
+                await interaction.edit_original_response(embed=final_embed)
+            except discord.NotFound:
+                await interaction.followup.send(embed=final_embed)
+        except Exception as e:
+            err_embed = discord.Embed(
+                title="❌ Sync Failed with SEGA DX NET",
+                description=f"`{e}`\n\n*If your CLAL token has expired, click below to enter a new one:*",
+                color=0xef4444
+            )
+            view = TokenExpiredView()
+            try:
+                await interaction.edit_original_response(embed=err_embed, view=view)
+            except discord.NotFound:
+                await interaction.followup.send(embed=err_embed, view=view)
 
 class ClalSyncModal(discord.ui.Modal, title="maimai DX NET Sync"):
     token_input = discord.ui.TextInput(
@@ -316,17 +346,22 @@ class ClalSyncModal(discord.ui.Modal, title="maimai DX NET Sync"):
         if is_sega_maintenance():
             embed = discord.Embed(
                 title="⚠️ SEGA Server Maintenance",
-                description=(
-                    "SEGA maimai DX NET undergoes daily server maintenance between **04:00 and 07:00 JST**.\n"
-                    "Sync is currently unavailable. Please try again after 07:00 JST!"
-                ),
+                description=SEGA_MAINTENANCE_MSG,
                 color=0xf59e0b
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
 
-        await interaction.response.defer(ephemeral=True)
         user_id = get_discord_user_id(interaction.user)
+        lock = get_user_sync_lock(user_id)
+        if lock.locked():
+            await interaction.response.send_message(
+                "A synchronization is already running for your account. Please wait for it to complete.",
+                ephemeral=True
+            )
+            return
+
+        await interaction.response.defer(thinking=True, ephemeral=True)
         raw_token = self.token_input.value.strip()
         await run_sync_with_progress(interaction, user_id, raw_token)
 
@@ -360,10 +395,7 @@ async def sync_cmd(interaction: discord.Interaction):
     if is_sega_maintenance():
         embed = discord.Embed(
             title="⚠️ SEGA Server Maintenance",
-            description=(
-                "SEGA maimai DX NET undergoes daily server maintenance between **04:00 and 07:00 JST**.\n"
-                "Sync is currently unavailable. Please try again after 07:00 JST!"
-            ),
+            description=SEGA_MAINTENANCE_MSG,
             color=0xf59e0b
         )
         await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -376,7 +408,15 @@ async def sync_cmd(interaction: discord.Interaction):
         await interaction.response.send_modal(ClalSyncModal())
         return
 
-    await interaction.response.defer(ephemeral=True)
+    lock = get_user_sync_lock(user_id)
+    if lock.locked():
+        await interaction.response.send_message(
+            "A synchronization is already running for your account. Please wait for it to complete.",
+            ephemeral=True
+        )
+        return
+
+    await interaction.response.defer(thinking=True, ephemeral=False)
     await run_sync_with_progress(interaction, user_id, None)
 
 @bot.tree.command(name="versions", description="View your current Overpower, possession plates, and 27-version profile card.")
@@ -491,11 +531,8 @@ async def version_cmd(
         inline=False
     )
 
-    # Rank and lamp distribution summary
-    if v_row and "rank_counts" in v_row and "lamp_counts" in v_row:
-        ranks, lamps = v_row["rank_counts"], v_row["lamp_counts"]
-    else:
-        ranks, lamps = calc_distributions(all_charts)
+    # Rank and lamp distribution summary (evaluated on Master & Re:Master charts)
+    ranks, lamps = calc_distributions(all_charts)
     dist_text = (
         f"**S:** {ranks.get('S', 0)} | **S+:** {ranks.get('S+', 0)} | **SS:** {ranks.get('SS', 0)} | **SS+:** {ranks.get('SS+', 0)} | **SSS:** {ranks.get('SSS', 0)} | **SSS+:** {ranks.get('SSS+', 0)}\n"
         f"**FC:** {lamps.get('FC', 0)} | **FC+:** {lamps.get('FC+', 0)} | **AP:** {lamps.get('AP', 0)} | **AP+:** {lamps.get('AP+', 0)}"
@@ -580,7 +617,7 @@ async def level_cmd(
     played = [c for c in level_charts if c.get("played")]
 
     # Compute live Overpower directly from level_charts
-    l_op = sum(calc_op(c.get("played", False), c["level"], c.get("lamp"), c.get("rating", "0"), c.get("percent", "0%")) for c in level_charts)
+    l_op = sum(calc_op(c.get("played", False), c["level"], c.get("lamp"), c.get("percent", "0%")) for c in level_charts)
     l_max = sum((float(c["level"]) + 3.0) * 5.0 for c in level_charts)
     l_pct = (l_op / l_max * 100) if l_max > 0 else 0.0
 

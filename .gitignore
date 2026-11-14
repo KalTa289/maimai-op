@@ -3,7 +3,6 @@ __pycache__/
 .agents/
 .venv/
 .vscode/
-tests/
 *.pyc
 skills-lock.json
 overpower_possession.md
