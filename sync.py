@@ -73,7 +73,7 @@ def calc_single_rating(level: float, achieve: float) -> int:
 
 def validate_clal_token(token: str) -> str:
     cleaned = token.strip()
-    if len(cleaned) != 64 or not re.match(r"^[0-9a-fA-F]{64}$", cleaned):
+    if len(cleaned) != 64:
         raise ValueError("Invalid CLAL token format: must be strictly 64 hexadecimal characters.")
     return cleaned
 

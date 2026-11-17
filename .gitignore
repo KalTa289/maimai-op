@@ -5,6 +5,7 @@ __pycache__/
 .vscode/
 *.pyc
 skills-lock.json
+overpower_possession.md
 
 # User & Private Auth Data
 users/
