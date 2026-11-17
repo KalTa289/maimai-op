@@ -753,6 +753,12 @@ async def help_cmd(interaction: discord.Interaction):
     )
     await interaction.followup.send(embed=embed)
 
+@bot.tree.command(name="ping", description="Check latency")
+async def ping_command(interaction: discord.Interaction):
+    latency_ms = round(bot.latency * 1000)
+    response = f"pong! Latency: `{latency_ms}ms`"
+    await interaction.response.send_message(response)
+
 # ==========================================
 # 6. Bot Lifecycle & Main Execution
 # ==========================================
